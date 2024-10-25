@@ -1,8 +1,20 @@
 [tool.poetry]
-package-mode: false
+name = "src"
+version = "0.1.0"
+description = "Neural Ode Classification"
+authors = ["sem-k32"]
+readme = "README.md"
+packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
+numpy = "^2.1.2"
+pandas = "^2.2.3"
+matplotlib = "^3.9.2"
+torch = "^2.5.0"
+ipykernel = "^6.29.5"
+scipy = "^1.14.1"
+scikit-learn = "^1.5.2"
 
 
 [build-system]

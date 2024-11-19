@@ -1,8 +1,5 @@
-# large datasets and models
-data/A_DeviceMotion_data
-data/data_subjects_info.csv
-
 .vscode
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

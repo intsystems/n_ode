@@ -3,7 +3,7 @@ from shutil import rmtree
 import yaml
 
 import torch
-from torch.utils.data import Dataset, TensorDataset, DataLoader
+from torch.utils.data import Dataset, TensorDataset
 import scipy.linalg as linalg
 
 from src.data_loading import creat_time_series, set_data_types
@@ -11,8 +11,9 @@ from src.data_loading import creat_time_series, set_data_types
 
 def main():
     # load config files for data and pipeline
-    with open("config.yaml", "r"), open("../../data/dataset_params.yaml") as f1, f2:
+    with open("config.yaml", "r") as f1:
         config = yaml.full_load(f1)
+    with open("../../data/dataset_params.yaml") as f2:
         data_params = yaml.full_load(f2)
     
     # make dir for trajectories
@@ -21,14 +22,13 @@ def main():
         rmtree(traj_dir)
     traj_dir.mkdir()
     
-    for activity, act_codes in data_params["activity_codes"]:
-        data_types_list = set_data_types([config["data_type"]])
+    for activity, act_codes in data_params["activity_codes"].items():
         # get labeled magnitudes of chosen signal
         series_df = creat_time_series(
             "../../data",
-            data_types_list,
+            set_data_types([config["data_type"]]),
             [activity],
-            act_codes
+            [act_codes]
         )
     
         # Last activity-code is left for test, others - for train
@@ -56,7 +56,7 @@ def main():
                         series[:config["trajectory_dim"]], series[config["trajectory_dim"] - 1:]
                     )
                     # transpose matrix so time axis = 0
-                    trajectories.append(torch.from_numpy(traj_matrix.T))
+                    trajectories.append(torch.from_numpy(traj_matrix.T).to(dtype=torch.float32))
     
                     durations.append(series.shape[0])
     
@@ -66,14 +66,14 @@ def main():
             for i, trajectory in enumerate(trajectories):
                 cur_duration = trajectory.shape[0]
                 trajectories[i] = torch.concat([
-                    trajectory, torch.zeros((max_duration - cur_duration, config["trajectory_dim"]))
+                    trajectory, torch.zeros((max_duration - cur_duration, config["trajectory_dim"]), dtype=torch.float32)
                 ])
                 trajectories[i].unsqueeze_(0)
     
             # make torch Dataset
             trajectories = torch.concat(trajectories)
-            durations = torch.FloatTensor(durations)
-            return TensorDataset((trajectories, durations))
+            durations = torch.LongTensor(durations)
+            return TensorDataset(trajectories, durations)
     
     
         # save train and test datasets on disk

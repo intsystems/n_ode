@@ -20,7 +20,6 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from field_model import *
-from optimizer import get_optimizer
 from train import get_trajectory_mask
 
 import warnings
@@ -146,8 +145,12 @@ def main():
     for model_file in models_dir.glob("*"):
         activity = model_file.stem
 
+        print(f"Working with {activity}")
+
         vector_field = VectorFieldMLP(
-            config["trajectory_dim"], config["trajectory_dim"])
+            config["trajectory_dim"], 
+            config["hidden_dim"]
+        )
         ode_model = NeuralODE(vector_field, solver='rk4').to(device)
         ode_model.load_state_dict(
             torch.load(model_file)

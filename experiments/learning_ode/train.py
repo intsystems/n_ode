@@ -36,6 +36,10 @@ def main(activity: str):
     with open("config.yaml", "r") as f1:
         config = yaml.full_load(f1)
 
+    # ode model dir
+    models_dir = Path("models/")
+    models_dir.mkdir(exist_ok=True)
+
     device = torch.device(config["device"])
 
     # dir with trajectories Datasets
@@ -95,7 +99,7 @@ def main(activity: str):
             global_step += 1
 
         ode_model.eval()
-        with torch.no_grad():   
+        with torch.no_grad():
             losses = []
             for batch in tqdm(test_loader, desc="Test", leave=False):
                 traj: torch.Tensor = batch[0].to(device)
@@ -113,18 +117,16 @@ def main(activity: str):
                 loss = F.mse_loss(
                     traj.flatten(end_dim=-2),
                     (traj_predict * mask).flatten(end_dim=-2),
-                    reduction="sum"
+                    reduction="mean"
                 ) * (traj.numel() / durations.sum())
                 losses.append(loss)
 
             writer.add_scalar("Test/MSE", torch.stack(losses).mean().item(), epoch)
 
-    writer.close()
+            # save the ode model
+            torch.save(ode_model.state_dict(), models_dir / f"{activity}.pt")
 
-    # save the ode model
-    models_dir = Path("models/")
-    models_dir.mkdir(exist_ok=True)
-    torch.save(ode_model.state_dict(), models_dir / f"{activity}.pt")
+    writer.close()
 
 if __name__ == "__main__":
     # read activity label from input

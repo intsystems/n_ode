@@ -13,7 +13,7 @@ from torchdyn.core import NeuralODE
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from field_model import VectorField
+from field_model import *
 from optimizer import get_optimizer
 
 import warnings
@@ -55,7 +55,7 @@ def main(activity: str):
     )
 
     # create model
-    vector_field = VectorField(config["trajectory_dim"], config["hidden_dim"])
+    vector_field = VectorFieldMLP(config["trajectory_dim"], config["hidden_dim"])
     ode_model = NeuralODE(vector_field, solver='rk4').to(device)
 
     # get optimizer
@@ -84,10 +84,10 @@ def main(activity: str):
 
             # average loss among all real phase vectors
             loss = F.mse_loss(
-                traj.flatten(end_dim=-2), 
+                traj.flatten(end_dim=-2),
                 (traj_predict * mask).flatten(end_dim=-2),
-                reduction="sum"
-            ) / durations.sum()
+                reduction="mean"
+            ) * (traj.numel() / durations.sum())
             loss.backward()
             optim.step()
 
@@ -95,7 +95,7 @@ def main(activity: str):
             global_step += 1
 
         ode_model.eval()
-        with torch.no_grad():
+        with torch.no_grad():   
             losses = []
             for batch in tqdm(test_loader, desc="Test", leave=False):
                 traj: torch.Tensor = batch[0].to(device)
@@ -111,10 +111,10 @@ def main(activity: str):
 
                 # average loss among all real phase vectors
                 loss = F.mse_loss(
-                    traj.flatten(end_dim=-2), 
+                    traj.flatten(end_dim=-2),
                     (traj_predict * mask).flatten(end_dim=-2),
                     reduction="sum"
-                ) / (durations.sum() * config["batch_size"])
+                ) * (traj.numel() / durations.sum())
                 losses.append(loss)
 
             writer.add_scalar("Test/MSE", torch.stack(losses).mean().item(), epoch)

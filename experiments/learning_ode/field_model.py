@@ -3,18 +3,17 @@ from torch import nn
 from torch.nn import functional as F
 
 
-class VectorField(nn.Module):
+class VectorFieldMLP(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int):
         super().__init__()
 
         self.layers = nn.Sequential(
-            nn.BatchNorm1d(input_dim),
             nn.Linear(input_dim, hidden_dim),
             nn.Tanh()
         )
 
         for i in range(2):
-            if i % 2 != 0:
+            if i % 2 == 0:
                 self.layers.append(nn.BatchNorm1d(hidden_dim))
                 
             self.layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.Tanh()])
@@ -23,4 +22,7 @@ class VectorField(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
+    
 
+class VectorFieldLinear(nn.Linear):
+    pass

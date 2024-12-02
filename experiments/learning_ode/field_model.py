@@ -6,17 +6,17 @@ from torch.nn import functional as F
 
 
 class VectorFieldMLP(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int):
+    def __init__(self, input_dim: int, hidden_dim: int, num_layers: int = 5):
         super().__init__()
 
-        activation = nn.Tanh()
+        activation = nn.LeakyReLU(0.5)
 
         self.layers = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             deepcopy(activation)
         )
 
-        for i in range(5):
+        for i in range(num_layers):
             if i % 2 == 0:
                 self.layers.append(nn.BatchNorm1d(hidden_dim))
                 

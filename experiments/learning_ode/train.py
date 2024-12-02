@@ -59,7 +59,7 @@ def main(activity: str):
     )
 
     # create model
-    vector_field = VectorFieldMLP(config["trajectory_dim"], config["hidden_dim"])
+    vector_field = eval(config["model_cls"])(config["trajectory_dim"], **config["model_params"])
     ode_model = NeuralODE(vector_field, solver='rk4').to(device)
 
     # get optimizer
@@ -90,8 +90,11 @@ def main(activity: str):
             loss = F.mse_loss(
                 traj.flatten(end_dim=-2),
                 (traj_predict * mask).flatten(end_dim=-2),
-                reduction="mean"
-            ) * (traj.numel() / durations.sum())
+                reduction="none"
+            )
+            # try weightening
+            # loss *= 1 / torch.sqrt(torch.arange(start=1, end=loss.shape[0] + 1).unsqueeze(1).to(device))
+            loss = (loss.sum(dim=1) / durations).sum()
             loss.backward()
             optim.step()
 
@@ -117,8 +120,11 @@ def main(activity: str):
                 loss = F.mse_loss(
                     traj.flatten(end_dim=-2),
                     (traj_predict * mask).flatten(end_dim=-2),
-                    reduction="mean"
-                ) * (traj.numel() / durations.sum())
+                    reduction="none"
+                )
+                # try weightening
+                # loss *= 1 / torch.sqrt(torch.arange(start=1, end=loss.shape[0] + 1).unsqueeze(1).to(device))
+                loss = (loss.sum(dim=1) / durations).sum()
                 losses.append(loss)
 
             writer.add_scalar("Test/MSE", torch.stack(losses).mean().item(), epoch)

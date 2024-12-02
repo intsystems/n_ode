@@ -1,5 +1,8 @@
 .vscode
 
+# postponed idea
+experiments/learning_ode_bayes
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

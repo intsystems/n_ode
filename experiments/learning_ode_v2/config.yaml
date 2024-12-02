@@ -1,0 +1,14 @@
+data_type: userAcceleration
+trajectory_dim: 10
+trajectory_len: 50
+
+model_cls: VectorFieldMLP
+model_params:
+  hidden_dim: 20
+  num_layers: 2
+
+device: cuda
+batch_size: 32
+num_epochs: 20
+
+test_ratio: 0.2

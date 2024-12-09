@@ -16,7 +16,7 @@ class VectorFieldMLP(nn.Module):
             deepcopy(activation)
         )
 
-        for i in range(num_layers):
+        for _ in range(num_layers):
             self.layers.extend([nn.Linear(hidden_dim, hidden_dim), deepcopy(activation)])
         
         self.layers.append(nn.Linear(hidden_dim, input_dim))
@@ -29,7 +29,7 @@ class VectorFieldLinear(nn.Linear):
     def __init__(self, in_features, out_features, bias = True, device=None, dtype=None):
         super().__init__(in_features, out_features, bias, device, dtype)
 
-        # inital point is sero
+        # inital point is zero
         self.weight = nn.Parameter(
             torch.zeros_like(self.weight, device=self.weight.device)
         )

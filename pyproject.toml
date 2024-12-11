@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "src"
+name = "node"
 version = "0.1.0"
 description = "Neural Ode Classification"
 authors = ["sem-k32"]
 readme = "README.md"
-packages = [{include = "src"}]
+packages = [{include = "node"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"

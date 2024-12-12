@@ -134,6 +134,6 @@ def get_callbacks(
 
     # import additional callbacks
     for add_cb_key, add_cb_list in additional_callbacks.items():
-        callbacks[add_cb_key] = callbacks[add_cb_key].extend(add_cb_list)
+        callbacks[add_cb_key].extend(add_cb_list, **locals())
 
     return callbacks

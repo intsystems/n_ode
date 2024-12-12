@@ -1,10 +1,7 @@
-""" launches neural ode train processes for specific activity label
-"""
 from pathlib import Path
+import yaml
 import wandb.sdk
 import wandb.wandb_run
-import yaml
-
 import wandb
 
 import numpy as np
@@ -19,9 +16,8 @@ from node.field_model import VectorFieldMLP
 import warnings
 warnings.simplefilter("ignore", FutureWarning)
 
-
 def get_model() -> NeuralODE:
-    """ Tune your general vector field and node
+    """ Default vector field and node
     """
     # load config files for pipeline
     with open("config.yaml", "r") as f1:
@@ -35,7 +31,7 @@ def get_model() -> NeuralODE:
 
 
 def get_optimizer(ode_model: NeuralODE, act: str) -> optim.Optimizer:
-    """ Tune your optimizer for each activities
+    """ Default optimizer for each activities. It can be tuned for each activity
     """
     # load config files for pipeline
     with open("config.yaml", "r") as f1:
@@ -84,12 +80,19 @@ def vizualize_pred_traj(
         )
 
 
+# walkaround to add new callbacks in training process
+# e.g. to add "download model" callback in colab
+additional_callbacks = {}
+
+
 def get_callbacks(
     run: wandb.sdk.wandb_run.Run,
     act: str,
     test_loader: DataLoader,
     models_dir: Path
 ) -> dict:
+    """ Default callbacks for training + importing additional callbacks
+    """
     prev_loss = None
     prev_prev_loss = None
 
@@ -122,9 +125,15 @@ def get_callbacks(
         torch.save(ode_model, models_dir / f"{act}.pt")
         run.log_model(path=models_dir / f"{act}.pt", name=act)
 
-    return {
-        "pre_epoch": pre_epoch,
-        "train": train,
-        "test": test,
-        "post_epoch": post_epoch
+    callbacks = {
+        "pre_epoch": [pre_epoch],
+        "train": [train],
+        "test": [test],
+        "post_epoch": [post_epoch]
     }
+
+    # import additional callbacks
+    for add_cb_key, add_cb_list in additional_callbacks.items():
+        callbacks[add_cb_key] = callbacks[add_cb_key].extend(add_cb_list)
+
+    return callbacks

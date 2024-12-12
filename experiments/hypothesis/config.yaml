@@ -1,5 +1,6 @@
 data_type: userAcceleration
 trajectory_dim: 20
+trajectory_len: 1000
 traj_dir: ../../data/trajectories
 
 model:
@@ -12,12 +13,12 @@ node:
   atol_adjoint: 1.0e-3
   rtol_adjoint: 1.0e-3
 
-device: cuda
-batch_size: 32
-num_epochs: 30
-
-test_ratio: 0.2
-
 optim:
   lr: 1.0e-3
   weight_decay: 1.0e-6
+
+device: cuda
+batch_size: 1
+num_epochs: 30
+
+test_ratio: 0.2

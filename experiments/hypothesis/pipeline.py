@@ -1,17 +1,21 @@
 """Experiment pipeline file
 """
+from collections import defaultdict
 from pathlib import Path
 import yaml
+from tqdm import tqdm
 
 import wandb
 
+import numpy as np
+import pandas as pd
+
 import torch
-import torch.nn as nn
 from torch.utils.data import random_split, DataLoader
 
+from node.train import compute_traj_batch_loss, predict_trajectory, train
 from node.traj_build import make_trajectories, make_activity_dataset
-from train import get_model, get_optimizer, get_callbacks
-from node.train import train
+from train_config import get_model, get_optimizer, get_callbacks
 
 
 def main():
@@ -33,7 +37,9 @@ def main():
     # configure wandb run
     run = wandb.init(
         project="node",
-        tags=["hypothesis", "no_normalize", "dim20", "mlp_field"]
+        group="hypothesis",
+        tags=["no_normalize", "dim20", "len1000", "mlp_field", "jog_std"],
+        config=config
     )
 
     make_trajectories(
@@ -42,6 +48,9 @@ def main():
         traj_dir
     )
     
+    test_loaders = {}
+    ode_models = {}
+
     # train models for each activity
     for act in data_params["activity_codes"]:
         act_dataset = make_activity_dataset(act, traj_dir)
@@ -59,6 +68,8 @@ def main():
             config["batch_size"],
             shuffle=False
         )
+        # save test trajectories for futher classification
+        test_loaders[act] = test_loader
 
         ode_model = get_model().to(device)
         optimizer = get_optimizer(ode_model, act)
@@ -72,6 +83,52 @@ def main():
             optimizer,
             callbacks
         )
+
+        # save model for futher classification
+        ode_models[act] = ode_model
+
+    # classify tests trajectories with trained models
+    # using bayessian statistical testing
+    # assume all activities are equally probable
+    # then label = argmax of liklyhoods
+    for act, test_loader in test_loaders.items():
+        print(f"Computing log liklyhoods for {act}")
+        act_log_lh = defaultdict(lambda: torch.empty((0, ), device=device))
+
+        with torch.no_grad():
+            for batch in tqdm(train_loader, desc="Test", leave=False):
+                device = ode_model.device
+
+                traj: torch.Tensor = batch[0].to(device)
+                durations: torch.Tensor = batch[1].to(device)
+
+                # compute batch loss for all models
+                for ode_model_act, ode_model in ode_models.items():
+                    traj_predict = predict_trajectory(ode_model, traj)
+                    # average loss among all REAL phase vectors
+                    loss_batch = compute_traj_batch_loss(traj, traj_predict, durations)
+
+                    act_log_lh[ode_model_act] = torch.concat(
+                        [act_log_lh[ode_model_act], loss_batch],
+                        dim=0
+                    )
+
+                # debug
+                # break
+
+        # transform results to Dataframe
+        act_log_lh = {
+            act: log_lh_torch.cpu().numpy() for act, log_lh_torch in act_log_lh.items()
+        }
+        act_log_lh = pd.DataFrame(data=act_log_lh)
+        # log lh table
+        run.log({f"log_lh_{act}": wandb.Table(dataframe=act_log_lh)})
+
+        # compute activity pedictions
+        act_pred = act_log_lh.idxmax(axis="columns")
+        accuracy = (act_pred == act).mean()
+        # log accuracy for current activity
+        run.log({f"accuracy_{act}": accuracy})
 
 
 if __name__ == "__main__":

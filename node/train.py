@@ -1,5 +1,3 @@
-""" launches neural ode train processes for specific activity label
-"""
 from tqdm import tqdm
 from typing import Callable
 
@@ -24,44 +22,76 @@ def get_trajectory_mask(durations: torch.Tensor, traj: torch.Tensor) -> torch.Te
     return mask
 
 
+def predict_trajectory(
+    ode_model: NeuralODE,
+    traj: torch.Tensor
+) -> torch.Tensor:
+    device = ode_model.device
+
+    traj_len = traj.shape[1]
+    t_span = torch.arange(0, traj_len).to(device)
+
+    t_eval, traj_predict = ode_model(traj[:, 0, :], t_span)
+    # move batch axis in front
+    traj_predict = traj_predict.movedim(1, 0)
+
+    return traj_predict
+
+
+def compute_traj_batch_loss(
+    traj_target: torch.Tensor,
+    traj_predict: torch.Tensor,
+    durations: torch.Tensor
+) -> torch.Tensor:
+    mask = get_trajectory_mask(durations, traj_target)
+
+    # compute loss for each phase vector
+    loss = F.mse_loss(
+        traj_target,
+        traj_predict * mask,
+        reduction="none"
+    )
+    # get l2-norm of traj. vectors residuals
+    loss = loss.sum(dim=-1)
+    # avarage on real traj. duration
+    loss = loss.sum(dim=-1) / durations
+
+    return loss
+
+
+def compute_traj_loss(
+    traj_target: torch.Tensor,
+    traj_predict: torch.Tensor,
+    durations: torch.Tensor
+) -> torch.Tensor:
+    loss = compute_traj_batch_loss(traj_target, traj_predict, durations)
+    # mean across batch
+    loss = loss.mean()
+
+    return loss
+
+
 def train_epoch(
     ode_model: NeuralODE,
     train_loader: DataLoader,
     optimizer: optim.Optimizer,
     callback: Callable = None
 ):
-    device = ode_model.device
-
     ode_model.train()
     for batch in tqdm(train_loader, desc="Train", leave=False):
+        device = ode_model.device
         # debug
-        break
+        # break
 
         optimizer.zero_grad()
 
         traj: torch.Tensor = batch[0].to(device)
         durations: torch.Tensor = batch[1].to(device)
         
-        traj_len = traj.shape[1]
-        t_span = torch.arange(0, traj_len).to(device)
-        mask = get_trajectory_mask(durations, traj)
+        traj_predict = predict_trajectory(ode_model, traj)
 
-        t_eval, traj_predict = ode_model(traj[:, 0, :], t_span)
-        # move batch axis in front
-        traj_predict = traj_predict.movedim(1, 0)
-
-        # average loss among all real phase vectors
-        loss = F.mse_loss(
-            traj,
-            traj_predict * mask,
-            reduction="none"
-        )
-        # get l2-norm of traj. vectors residuals
-        loss = loss.sum(dim=-1)
-        # avarage on real traj. duration
-        loss = loss.sum(dim=-1) / durations
-        # mean across batch
-        loss = loss.mean()
+        # average loss among all REAL phase vectors
+        loss = compute_traj_loss(traj, traj_predict, durations)
 
         loss.backward()
         optimizer.step()
@@ -83,36 +113,20 @@ def eval_epoch(
     test_losses = []
     for batch in tqdm(test_loader, desc="Test", leave=False):
         # debug
-        break
+        # break
 
         traj: torch.Tensor = batch[0].to(device)
         durations: torch.Tensor = batch[1].to(device)
 
-        traj_len = traj.shape[1]
-        t_span = torch.arange(0, traj_len).to(device)
-        mask = get_trajectory_mask(durations, traj)
+        traj_predict = predict_trajectory(ode_model, traj)
 
-        t_eval, traj_predict = ode_model(traj[:, 0, :], t_span)
-        # move batch axis in front
-        traj_predict = traj_predict.movedim(1, 0)
-
-        # average loss among all real phase vectors
-        loss = F.mse_loss(
-            traj,
-            traj_predict * mask,
-            reduction="none"
-        )
-        # get l2-norm of traj. vectors residuals
-        loss = loss.sum(dim=-1)
-        # avarage on real traj. duration
-        loss = loss.sum(dim=-1) / durations
-        # mean across batch
-        loss = loss.mean()
+        # average loss among all REAL phase vectors
+        loss = compute_traj_loss(traj, traj_predict, durations)
         test_losses.append(loss)
 
     # debug
-    test_average_loss = 0
-    # test_average_loss = torch.stack(test_losses).mean().item()
+    # test_average_loss = 0
+    test_average_loss = torch.stack(test_losses).mean().item()
 
     if callback is not None:
         callback(ode_model, {"mean_mse": test_average_loss})
@@ -124,7 +138,7 @@ def train(
     train_loader: DataLoader,
     test_loader: DataLoader,
     optimizer: optim.Optimizer,
-    callbacks: dict[Callable] = None
+    callbacks: dict[list[Callable]] = None
 ):
     # set default callbacks if not provided
     if callbacks is None:
@@ -138,9 +152,14 @@ def train(
     for epoch in tqdm(range(num_epochs), desc="Epoch"):
         # calling pre epoch callback
         # it can stop training
-        if callbacks["pre_epoch"] is not None and callbacks["pre_epoch"](ode_model):
-            print("Stopping early.")
-            break
+        if callbacks["pre_epoch"] is not None:
+            stop_train = False
+            for callback in callbacks["pre_epoch"].values():
+                stop_train |= callback["pre_epoch"](ode_model)
+            
+            if stop_train:
+                print("Stopping early.")
+                break
 
         train_epoch(
             ode_model,
@@ -157,7 +176,8 @@ def train(
 
         # calling post epoch callbacks
         if callbacks["post_epoch"] is not None:
-            callbacks["post_epoch"](ode_model)
+            for callback in callbacks["post_epoch"].values():
+                callback(ode_model)
 
 
 @torch.no_grad

@@ -75,7 +75,7 @@ def train_epoch(
     ode_model: NeuralODE,
     train_loader: DataLoader,
     optimizer: optim.Optimizer,
-    callback: Callable = None
+    callbacks: list[Callable] = None
 ):
     ode_model.train()
     for batch in tqdm(train_loader, desc="Train", leave=False):
@@ -96,15 +96,16 @@ def train_epoch(
         loss.backward()
         optimizer.step()
 
-        if callback is not None:
-            callback(ode_model, {"mse": loss.item()})
+        if callbacks is not None:
+            for callback in callbacks:
+                callback(ode_model, {"mse": loss.item()})
 
 
 @torch.no_grad
 def eval_epoch(
     ode_model: NeuralODE,
     test_loader: DataLoader,
-    callback: Callable = None
+    callbacks: list[Callable] = None
 ):
     device = ode_model.device
 
@@ -128,8 +129,9 @@ def eval_epoch(
     # test_average_loss = 0
     test_average_loss = torch.stack(test_losses).mean().item()
 
-    if callback is not None:
-        callback(ode_model, {"mean_mse": test_average_loss})
+    if callbacks is not None:
+        for callback in callbacks:
+                callback(ode_model, {"mean_mse": test_average_loss})
 
 
 def train(
@@ -154,8 +156,8 @@ def train(
         # it can stop training
         if callbacks["pre_epoch"] is not None:
             stop_train = False
-            for callback in callbacks["pre_epoch"].values():
-                stop_train |= callback["pre_epoch"](ode_model)
+            for callback in callbacks["pre_epoch"]:
+                stop_train |= callback(ode_model)
             
             if stop_train:
                 print("Stopping early.")
@@ -176,7 +178,7 @@ def train(
 
         # calling post epoch callbacks
         if callbacks["post_epoch"] is not None:
-            for callback in callbacks["post_epoch"].values():
+            for callback in callbacks["post_epoch"]:
                 callback(ode_model)
 
 

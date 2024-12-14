@@ -110,8 +110,9 @@
 		
 		\begin{figure}
 			\centering
-			%\includegraphics[width=0.7\textwidth,keepaspectratio]{img/bayes_graph_gen.jpg}
-			%\includegraphics[width=0.7\textwidth,keepaspectratio]{img/bayes_graph_discr.jpg}
+			\includegraphics[width=0.49\textwidth,keepaspectratio]{img/bayes_graph_gen.jpg}
+			\includegraphics[width=0.49\textwidth,keepaspectratio]{img/bayes_graph_discr.png}
+			\caption{Графические модели для 2 и 3 типов связи}
 		\end{figure}
 		
 	\end{frame}
@@ -154,7 +155,8 @@
 		
 		\begin{figure}[h]
 			\centering
-			\includegraphics[width=0.6\textwidth]{img/motionsense}
+			\includegraphics[width=0.5\textwidth]{img/motionsense}
+			\caption{Примеры временных рядов в MotionSense}
 		\end{figure}
 		
 	\end{frame}	
@@ -171,14 +173,60 @@
 		
 	\end{frame}	
 	
-	\begin{frame}{Байесовское решающее правило}
-		
-		
-		
-	\end{frame}	
-	
 	\begin{frame}{Классификация в пространстве параметров}
 		
+		Классы активности "jog" и "stand". Для каждой траектории обучалась линейная модель. В пространстве параметров построен kNN-классификатор. Приведены метрики качества для каждого класса (тестовая выборка) и визуализация t-SNE обученных моделей.
+		
+		\begin{table}[]
+			%\caption{Качество классификации в пространстве параметров}
+			\begin{tabular}{|c|c|}
+				\hline
+				\textbf{Label} & \textbf{Accuracy} \\ \hline
+				jog            & 0.4               \\ \hline
+				std            & 0.7               \\ \hline
+			\end{tabular}
+
+		\end{table}
+		
+		 \begin{figure}
+		 	\centering
+		 	\includegraphics[width=0.5\textwidth]{img/tsne.png}
+		 	\caption{t-SNE на параметрах обученных моделей. Perplexity $= 15$.}
+		 \end{figure}
+		
+	\end{frame}
+	
+	\begin{frame}{Байесовское решающее правило}
+		
+		Классы активности "jog" и "upstairs" с равномерным априорным расределением. Траектории поделены на train/test. NN-модели обучены на train. Тестовая траектория классифицируется по наибольшему правдоподобию у обученной модели. Приведены метрики качества для каждого класса (тестовая выборка), примеры аппроксимации реальной траектории обученными моделями.
+		
+		\begin{table}[]
+			\begin{tabular}{|c|c|}
+				\hline
+				\textbf{Label} & \textbf{Accuracy} \\ \hline
+				jog            & 0.68              \\ \hline
+				ups            & 0.32              \\ \hline
+			\end{tabular}
+		\end{table}
+		
+		\begin{figure}
+			\centering
+			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/ups_traj_approx.png}
+			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/jog_traj_approx.png}
+		\end{figure}
+		
+	\end{frame}
+	
+	\begin{frame}{Итоги}
+		
+		\begin{enumerate}
+			\item Поставлена задача классификации временных рядов, порождённых скрытыми дин. системами
+			\item Предложены три вероятностные модели порождения фазовых траекторий
+			\item Для каждой модели предложен алгортим классификации новых траекторий
+			\item Поставлены первые вычислительные эксперименты по восстановлению параметров дин. систем и классификации 
+		\end{enumerate}
+		
+		В ближайшее время будет сделано больше вычислительных экспериметов, также будет развита теория по байесовскому типу связи параметров дин. системы со своим классом.
 		
 	\end{frame}	
 	

@@ -38,13 +38,13 @@ def slice_trajectory(traj_matrix: np.ndarray, traj_len: int) -> tuple[np.ndarray
     return batches, durations
 
 
-def normalize_trajectories(traj: np.ndarray) -> np.ndarray:
-    """ Use for complete trajectory matrix
+def normalize_trajectories(dataset: Dataset) -> Dataset:
+    """ Normalize trajectories (use for train and test simultainiously)
     """
-    mean = traj.mean(axis=0)
-    std = traj.std(axis=0, ddof=1)
+    traj: torch.Tensor = dataset.tensors[0].detach()
+    traj = (traj - traj.mean(dim=0)) / traj.std(dim=0)
 
-    return (traj - mean) / std
+    return TensorDataset(traj, dataset.tensors[1].detach())
 
 
 def make_activity_dataset(activity: str, traj_dir: Path) -> Dataset:

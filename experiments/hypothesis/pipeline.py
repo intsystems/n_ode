@@ -38,7 +38,7 @@ def main():
     run = wandb.init(
         project="node",
         group="hypothesis",
-        tags=["no_normalize", "dim20", "len1000", "mlp_field", "jog_std"],
+        tags=["no_normalize", "dim20", "len1000", "mlp_field", "jog_ups"],
         config=config
     )
 
@@ -92,11 +92,11 @@ def main():
     # assume all activities are equally probable
     # then label = argmax of liklyhoods
     for act, test_loader in test_loaders.items():
-        print(f"Computing log liklyhoods for {act}")
-        act_log_lh = defaultdict(lambda: torch.empty((0, ), device=device))
+        print(f"Computing test losses for {act}")
+        act_loss = defaultdict(lambda: torch.empty((0, ), device=device))
 
         with torch.no_grad():
-            for batch in tqdm(train_loader, desc="Test", leave=False):
+            for batch in tqdm(test_loader, desc="Test", leave=False):
                 device = ode_model.device
 
                 traj: torch.Tensor = batch[0].to(device)
@@ -108,8 +108,8 @@ def main():
                     # average loss among all REAL phase vectors
                     loss_batch = compute_traj_batch_loss(traj, traj_predict, durations)
 
-                    act_log_lh[ode_model_act] = torch.concat(
-                        [act_log_lh[ode_model_act], loss_batch],
+                    act_loss[ode_model_act] = torch.concat(
+                        [act_loss[ode_model_act], loss_batch],
                         dim=0
                     )
 
@@ -117,15 +117,15 @@ def main():
                 # break
 
         # transform results to Dataframe
-        act_log_lh = {
-            act: log_lh_torch.cpu().numpy() for act, log_lh_torch in act_log_lh.items()
+        act_loss = {
+            act: loss_torch.cpu().numpy() for act, loss_torch in act_loss.items()
         }
-        act_log_lh = pd.DataFrame(data=act_log_lh)
+        act_loss = pd.DataFrame(data=act_loss)
         # log lh table
-        run.log({f"log_lh_{act}": wandb.Table(dataframe=act_log_lh)})
+        run.log({f"log_lh_{act}": wandb.Table(dataframe=act_loss)})
 
         # compute activity pedictions
-        act_pred = act_log_lh.idxmax(axis="columns")
+        act_pred = act_loss.idxmin(axis="columns")
         accuracy = (act_pred == act).mean()
         # log accuracy for current activity
         run.log({f"accuracy_{act}": accuracy})

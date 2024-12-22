@@ -52,9 +52,12 @@ def vizualize_pred_traj(
 ):
     device = ode_model.device
 
-    # get first 3 test trajectories
+    # get first <=3 test trajectories
     traj, durations = next(iter(test_loader))
-    traj = traj[:3].to(device); durations = durations[:3].to(device)
+    num_traj = min(3, traj.shape[0])
+
+    traj = traj[:num_traj].to(device)
+    durations = durations[:num_traj].to(device)
 
     # get prediction
     traj_len = traj.shape[1]
@@ -63,7 +66,7 @@ def vizualize_pred_traj(
     # move batch axis in front
     traj_predict = traj_predict.movedim(1, 0)
 
-    for i in range(3):
+    for i in range(num_traj):
         # vizualize first two components of the trajectory vector
         true_traj = traj[i, :durations[i], :2].cpu().numpy()
         pred_traj = traj_predict[i, :durations[i], :2].cpu().numpy()

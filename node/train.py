@@ -72,6 +72,7 @@ def compute_traj_loss(
 
 
 def train_epoch(
+    epoch: int,
     ode_model: NeuralODE,
     train_loader: DataLoader,
     optimizer: optim.Optimizer,
@@ -92,17 +93,20 @@ def train_epoch(
 
         # average loss among all REAL phase vectors
         loss = compute_traj_loss(traj, traj_predict, durations)
+        if torch.abs(loss) < 1e-3 or loss is None:
+            pass
 
         loss.backward()
         optimizer.step()
 
         if callbacks is not None:
             for callback in callbacks:
-                callback(ode_model, {"mse": loss.item()})
+                callback(epoch, ode_model, {"mse": loss.item()})
 
 
-@torch.no_grad
+@torch.no_grad()
 def eval_epoch(
+    epoch: int,
     ode_model: NeuralODE,
     test_loader: DataLoader,
     callbacks: list[Callable] = None
@@ -131,7 +135,7 @@ def eval_epoch(
 
     if callbacks is not None:
         for callback in callbacks:
-                callback(ode_model, {"mean_mse": test_average_loss})
+                callback(epoch, ode_model, {"mean_mse": test_average_loss})
 
 
 def train(
@@ -157,13 +161,14 @@ def train(
         if callbacks["pre_epoch"] is not None:
             stop_train = False
             for callback in callbacks["pre_epoch"]:
-                stop_train |= callback(ode_model)
+                stop_train |= callback(epoch, ode_model)
             
             if stop_train:
                 print("Stopping early.")
                 break
 
         train_epoch(
+            epoch,
             ode_model,
             train_loader,
             optimizer,
@@ -171,6 +176,7 @@ def train(
         )
 
         eval_epoch(
+            epoch,
             ode_model,
             test_loader,
             callbacks["test"]
@@ -179,14 +185,17 @@ def train(
         # calling post epoch callbacks
         if callbacks["post_epoch"] is not None:
             for callback in callbacks["post_epoch"]:
-                callback(ode_model)
+                callback(epoch, ode_model)
 
 
-@torch.no_grad
+@torch.no_grad()
 def vizualize_pred_traj(
     ode_model: NeuralODE,
     test_loader: DataLoader,
 ):
+    """ Makes matplotlib plot of predicited and true phase trajectories,
+        projected on the first 2 dims
+    """
     device = ode_model.device
 
     # get first 3 test trajectories

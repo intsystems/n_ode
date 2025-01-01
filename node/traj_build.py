@@ -10,6 +10,47 @@ import scipy.linalg as linalg
 from .raw_data_loading import creat_time_series, set_data_types
 
 
+def normalize_trajectories(traj: torch.Tensor) -> torch.Tensor:
+    """ Use for batched trajectory tensors
+    """
+    mean = traj.mean(dim=(0, 1))
+    std = traj.std(dim=(0, 1))
+
+    return (traj - mean) / std
+
+
+def get_unit_dataset(act: str, act_code: int, participant: int, traj_dir: Path) -> Dataset:
+    """ return trajectories for particular activity, act_code and participant
+    """
+    traj_file_name = f"{act}_{act_code}_{participant}.pt"
+    duration_file_name = f"{act}_{act_code}_{participant}_duration.pt"
+
+    trajectories = torch.load(traj_dir / traj_file_name)
+    durations = torch.load(traj_dir / duration_file_name)
+
+    return TensorDataset(trajectories, durations)
+
+
+def make_activity_dataset(activity: str, traj_dir: Path) -> Dataset:
+    act_files = list(traj_dir.glob(f"{activity}*[!(_duration)].pt"))
+    traj_list = list(map(
+        torch.load,
+        act_files
+    ))
+
+    dur_files = list(traj_dir.glob(f"{activity}*_duration.pt"))
+    dur_list = list(map(
+        torch.load,
+        dur_files
+    ))
+
+    # merge trajectories
+    trajectories = torch.concat(traj_list)
+    durations = torch.concat(dur_list)
+
+    return TensorDataset(trajectories, durations)
+
+
 def slice_trajectory(traj_matrix: np.ndarray, traj_len: int) -> tuple[np.ndarray]:
     """ function for slicing phase trajectory on patches with traj_len length
     """
@@ -38,35 +79,6 @@ def slice_trajectory(traj_matrix: np.ndarray, traj_len: int) -> tuple[np.ndarray
     return batches, durations
 
 
-def normalize_trajectories(dataset: Dataset) -> Dataset:
-    """ Normalize trajectories (use for train and test simultainiously)
-    """
-    traj: torch.Tensor = dataset.tensors[0].detach()
-    traj = (traj - traj.mean(dim=0)) / traj.std(dim=0)
-
-    return TensorDataset(traj, dataset.tensors[1].detach())
-
-
-def make_activity_dataset(activity: str, traj_dir: Path) -> Dataset:
-    act_files = list(traj_dir.glob(f"{activity}*[!(_duration)].pt"))
-    traj_list = list(map(
-        torch.load,
-        act_files
-    ))
-
-    dur_files = list(traj_dir.glob(f"{activity}*_duration.pt"))
-    dur_list = list(map(
-        torch.load,
-        dur_files
-    ))
-
-    # merge trajectories
-    trajectories = torch.concat(traj_list)
-    durations = torch.concat(dur_list)
-
-    return TensorDataset(trajectories, durations)
-
-
 def make_trajectories(config: dict, data_path: Path, traj_dir: Path = "trajectories/"):
     """Creates trajectories as torch.Tensors for each activity, activity code, participant.
 
@@ -75,8 +87,6 @@ def make_trajectories(config: dict, data_path: Path, traj_dir: Path = "trajector
         data_path (Path): _description_
         traj_dir (Path, optional): dir to save trajectories. Defaults to "trajectories/".
     """
-    print("Building phase trajectories...")
-
     # load config files for data
     with open(data_path / "dataset_params.yaml") as f2:
         data_params = yaml.full_load(f2)

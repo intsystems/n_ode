@@ -11,10 +11,10 @@ import numpy as np
 import pandas as pd
 
 import torch
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import random_split, DataLoader, TensorDataset
 
 from node.train import compute_traj_batch_loss, predict_trajectory, train
-from node.traj_build import make_trajectories, make_activity_dataset
+from node.traj_build import make_trajectories, make_activity_dataset, normalize_trajectories
 from train_config import get_model, get_optimizer, get_callbacks
 
 
@@ -38,10 +38,11 @@ def main():
     run = wandb.init(
         project="node",
         group="hypothesis",
-        tags=["no_normalize", "dim20", "len1000", "mlp_field", "jog_ups"],
+        tags=["no-normalized", "dim20", "len500", "mlp_tanh", "jog_ups"],
         config=config
     )
 
+    print("Building phase trajectories...")
     make_trajectories(
         config,
         data_dir,
@@ -52,8 +53,12 @@ def main():
     ode_models = {}
 
     # train models for each activity
+    print("Training models...")
     for act in data_params["activity_codes"]:
         act_dataset = make_activity_dataset(act, traj_dir)
+        # normalize trajectories
+        # act_dataset = TensorDataset(normalize_trajectories(act_dataset.tensors[0]), act_dataset.tensors[1])
+
         train_dataset, test_dataset = random_split(
             act_dataset,
             [1 - config["test_ratio"], config["test_ratio"]]
@@ -75,8 +80,15 @@ def main():
         optimizer = get_optimizer(ode_model, act)
         callbacks = get_callbacks(run, act, test_loader, models_dir)
 
-        train(
-            config["num_epochs"],
+        print(f"Training {act}...")
+        if act == "ups":
+            num_epochs = config["num_epochs"]
+        else:
+            # use more epochs for jog
+            num_epochs = config["num_epochs"] + 4
+
+        train(  
+            num_epochs,
             ode_model,
             train_loader,
             test_loader,
@@ -91,6 +103,7 @@ def main():
     # using bayessian statistical testing
     # assume all activities are equally probable
     # then label = argmax of liklyhoods
+    print("Classifying test trajectories...")
     for act, test_loader in test_loaders.items():
         print(f"Computing test losses for {act}")
         act_loss = defaultdict(lambda: torch.empty((0, ), device=device))
@@ -122,7 +135,7 @@ def main():
         }
         act_loss = pd.DataFrame(data=act_loss)
         # log lh table
-        run.log({f"log_lh_{act}": wandb.Table(dataframe=act_loss)})
+        run.log({f"losses_{act}": wandb.Table(dataframe=act_loss)})
 
         # compute activity pedictions
         act_pred = act_loss.idxmin(axis="columns")

@@ -43,7 +43,7 @@ def get_optimizer(ode_model: NeuralODE, act: str) -> optim.Optimizer:
     )
 
 
-@torch.no_grad
+@torch.no_grad()
 def vizualize_pred_traj(
     act: str,
     ode_model: NeuralODE,
@@ -52,10 +52,9 @@ def vizualize_pred_traj(
 ):
     device = ode_model.device
 
-    # get first <=3 test trajectories
     traj, durations = next(iter(test_loader))
+    # get first <=3 test trajectories
     num_traj = min(3, traj.shape[0])
-
     traj = traj[:num_traj].to(device)
     durations = durations[:num_traj].to(device)
 
@@ -77,7 +76,7 @@ def vizualize_pred_traj(
                     [true_traj[:, 0], pred_traj[:, 0]],
                     [true_traj[:, 1], pred_traj[:, 1]],
                     keys=["true", "pred"],
-                    title=f"Trajectories {i}"
+                    title=f"Trajectories {i} for {act}"
                 )
             }
         )

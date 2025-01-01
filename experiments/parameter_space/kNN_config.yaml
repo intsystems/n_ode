@@ -1,0 +1,4 @@
+n_neighbors: 5
+weights: distance
+p: 2
+n_jobs: 6

@@ -1,0 +1,26 @@
+data_type: userAcceleration
+trajectory_dim: 20
+trajectory_len: 500
+traj_dir: ../../data/trajectories
+
+model:
+  in_features: 20     # = trajectory_dim
+  out_features: 20    # = trajectory_dim
+node:
+  solver: rk4
+  solver_adjoint: dopri5
+  atol_adjoint: 1.0e-3
+  rtol_adjoint: 1.0e-3
+
+optim:
+  lr: 5.0e-4
+  weight_decay: 1.0e-6
+
+device: cuda
+batch_size: 16
+num_epochs: 15
+
+num_test_trajectories: 1
+
+test_size: 0.2
+random_state: 42

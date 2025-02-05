@@ -18,7 +18,7 @@ optim:
 
 device: cuda
 batch_size: 16
-num_epochs: 15
+num_epochs: 20
 
 num_test_trajectories: 1
 

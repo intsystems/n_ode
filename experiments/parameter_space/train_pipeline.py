@@ -39,7 +39,8 @@ def main():
         project="node",
         group="parameter_space",
         tags=["train", "no-normalized", "dim20", "len500", "linear_vec_field", "jog_ups"],
-        config=config
+        config=config,
+        #mode="disabled" # debug
     )
 
     print("Building phase trajectories...")
@@ -79,7 +80,7 @@ def main():
                 # from other participants for test
                 other_test_dataset = []
                 rand_other_partic = np.random.choice(
-                    set(range(data_params["num_participants"])) - set([partic]),
+                    list(set(range(data_params["num_participants"])) - set([partic])),
                     config["num_test_trajectories"]
                 )
                 for other_partic in rand_other_partic:

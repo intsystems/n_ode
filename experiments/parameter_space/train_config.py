@@ -52,7 +52,7 @@ def get_eval_on_other_participants_callback(
     run: wandb.sdk.wandb_run.Run
 ):
     def log_other_loss(epoch: int, ode_model: NeuralODE, results: dict):
-        run.log({f"Test/{act}_{act_code}_{partic}_other_loss": results["mse_loss"]}, step=epoch)
+        run.log({f"Test/{act}_{act_code}_{partic}_other_loss": results["mean_mse"]})
 
     @torch.no_grad()
     def eval_on_other_participants_callback(epoch: int, ode_model: NeuralODE, results: dict):
@@ -125,7 +125,7 @@ def get_callbacks(
     prev_loss = None
     prev_prev_loss = None
 
-    def pre_epoch(ode_model: NeuralODE) -> bool:
+    def pre_epoch(epoch, ode_model: NeuralODE) -> bool:
         nonlocal prev_prev_loss
         nonlocal prev_loss
 
@@ -134,7 +134,7 @@ def get_callbacks(
         else:
             return np.abs(prev_loss - prev_prev_loss) < 1e-3
         
-    def train(ode_model: NeuralODE, results: dict):
+    def train(epoch, ode_model: NeuralODE, results: dict):
         for label, val in results.items():
             run.log({f"Train/{act}_{act_code}_{partic}_{label}": val})
         
@@ -143,11 +143,11 @@ def get_callbacks(
         prev_prev_loss = prev_loss
         prev_loss = results["mse"]
 
-    def test(ode_model: NeuralODE, results: dict):
+    def test(epoch, ode_model: NeuralODE, results: dict):
         for label, val in results.items():
             run.log({f"Test/{act}_{act_code}_{partic}_{label}": val})
 
-    def post_epoch(ode_model: NeuralODE):
+    def post_epoch(epoch, ode_model: NeuralODE):
         # vizualize_pred_traj(act, ode_model, test_loader, run)
 
         # log model

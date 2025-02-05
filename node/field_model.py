@@ -8,8 +8,8 @@ from torch.nn import functional as F
 class VectorFieldMLP(nn.Module):
     def __init__(
             self, 
-            input_dim: int, 
-            hidden_dim: int, 
+            input_dim: int,
+            hidden_dim: int,
             num_layers: int = 5,
             activation: type[nn.Module] = nn.Tanh,
             activation_params: dict = {}

@@ -14,7 +14,7 @@ import torch
 from torch.utils.data import random_split, DataLoader, TensorDataset, ConcatDataset
 
 from node.train import compute_traj_batch_loss, predict_trajectory, train
-from node.traj_build import make_trajectories, get_unit_dataset, normalize_trajectories
+from node.traj_build import make_trajectories, get_unit_dataset, normalize_traj
 from train_config import get_model, get_optimizer, get_callbacks, get_eval_on_other_participants_callback
 
 

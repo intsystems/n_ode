@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 class VectorFieldMLP(nn.Module):
     def __init__(
-            self, 
+            self,
             input_dim: int,
             hidden_dim: int,
             num_layers: int = 5,
@@ -21,7 +21,13 @@ class VectorFieldMLP(nn.Module):
             activation(**activation_params)
         )
 
-        for _ in range(num_layers):
+        for i in range(num_layers):
+            if i % 2 == 0:
+                # explictly name each batch norm
+                # for convinience in futher pyro extension
+                # self.layers.add_module(f"batch_norm_{i}", nn.BatchNorm1d(hidden_dim))
+                self.layers.append(nn.Dropout1d(p=0.1))
+
             self.layers.extend([
                 nn.Linear(hidden_dim, hidden_dim),
                 activation(**activation_params)]
@@ -29,7 +35,7 @@ class VectorFieldMLP(nn.Module):
         
         self.layers.append(nn.Linear(hidden_dim, input_dim))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
 
 

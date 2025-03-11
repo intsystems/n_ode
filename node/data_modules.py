@@ -1,17 +1,15 @@
 from typing import Optional
 from pathlib import Path
-from shutil import rmtree
 from copy import deepcopy
 from omegaconf import OmegaConf
 
-from pipe import select, izip
+from pipe import select, izip, where
 from itertools import starmap
 
 import numpy as np
-from scipy import linalg
 
 import torch
-from torch.utils.data import Dataset, random_split, DataLoader
+from torch.utils.data import Dataset, Subset, DataLoader
 
 import lightning as L
 
@@ -44,7 +42,7 @@ class ActivityTrajDataset(Dataset):
         self.data_params = OmegaConf.load(data_path / "dataset_params.yaml")
 
         self._data_files = list(
-            ("trajs.pt", "durations.pt", "subjs.pt") |
+            ("trajs.pt", "durations.pt", "subjs.pt", "traj_nums.pt") |
             select(lambda data_name: Path(save_dir / data_name))
         )
 
@@ -63,6 +61,8 @@ class ActivityTrajDataset(Dataset):
             )
 
             data = []
+            # inital trajectory number for slices
+            traj_num = 0
             for act_code in self.data_params.activity_codes[self.act]:
                 for subj_id in range(self.data_params.num_participants):
                     print(f"Activity: {self.act}; Act_code: {act_code}; Participant: {subj_id}")
@@ -76,8 +76,10 @@ class ActivityTrajDataset(Dataset):
 
                     cur_data = takens_traj(series, self.dim, self.max_len)
                     cur_num_traj = cur_data[0].shape[0]
-                    cur_data = list(cur_data) + [[subj_id] * cur_num_traj]
+                    cur_data = list(cur_data) + [[subj_id] * cur_num_traj] + [[traj_num] * cur_num_traj]
+
                     data.append(cur_data)
+                    traj_num += 1
 
             # save data as tensors
             any(
@@ -100,6 +102,12 @@ class ActivityTrajDataset(Dataset):
 
     def __len__(self):
         return self._num_trajs
+    
+    @property
+    def num_trajs(self):
+        """ returns total number of full trajectories in the dataset
+        """
+        return torch.load(self._data_files[-1], weights_only=True, mmap=self._mmap)[-1].item()
 
     def __getitem__(self, index):
         return tuple(
@@ -122,7 +130,7 @@ class ActivityDataModule(L.LightningDataModule):
         mmap: Optional[bool],
         data_type: str = "rotationRate",
         batch_size: int = 32,
-        test_ratio: float = 0.2
+        test_ratio: float = 0.2     # по полным траекториям
     ):
         self.batch_size = batch_size
         self.test_ratio = test_ratio
@@ -140,11 +148,14 @@ class ActivityDataModule(L.LightningDataModule):
     def setup(self, stage):
         # load ready trajectories
         # split them for dataloaders
-        self.train_dataset, self.val_dataset = random_split(
-            ActivityTrajDataset(**self.dataset_kwargs),
-            [1 - self.test_ratio, self.test_ratio],
-            torch.Generator().manual_seed(42)
+        dataset = ActivityTrajDataset(**self.dataset_kwargs)
+        num_trajs = dataset.num_trajs
+        split_index = max(
+            range(len(dataset)) |
+            where(lambda i: dataset[i][-1] < int((1 - self.test_ratio) * num_trajs))
         )
+        self.train_dataset = Subset(dataset, list(range(split_index)))
+        self.val_dataset = Subset(dataset, list(range(split_index, len(dataset))))
 
     def train_dataloader(self):
         return DataLoader(

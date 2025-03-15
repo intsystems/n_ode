@@ -81,7 +81,7 @@ class LitBayessianNODE(L.LightningModule):
         self.save_hyperparameters(ignore=["vf"], logger=False)
 
     def training_step(self, batch: tuple[torch.Tensor], batch_indx):
-        traj, duration, subj = batch
+        traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
         elbo_loss = self.loss_fun(self.dataset_size, duration, z_0, traj)

@@ -1,6 +1,21 @@
 # Neural ODE classification
 
-*Current activity*: working with accelerometer 1d time series of different physical activities. Training several nODE models on specific activity, comparing ML estimations of model's parameters in terms of KL-divirgence. Classifying test trajectories.
+## Repository structure
+
+```
+.
+├── data
+├── docs                # paper
+├── experiments
+├── LICENSE.txt
+├── litreview.md
+├── node                # common components for experiments
+├── poetry.lock
+├── pyproject.toml
+├── README.md
+├── slides
+└── tests
+```
 
 ## Authors
 

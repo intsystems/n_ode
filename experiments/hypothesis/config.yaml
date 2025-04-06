@@ -1,24 +1,27 @@
-data_type: userAcceleration
-trajectory_dim: 20
-trajectory_len: 500
-traj_dir: ../../data/trajectories
-
-model:
-  input_dim: 20
+vf:
+  input_dim: 10
   hidden_dim: 50
-  num_layers: 10
-node:
-  solver: rk4
-  solver_adjoint: dopri5
-  atol_adjoint: 1.0e-3
-  rtol_adjoint: 1.0e-3
-
+  num_layers: 2
+odeint:
+  method: dopri5
+  atol: 1.0e-2
+  rtol: 1.0e-2
 optim:
   lr: 5.0e-4
   weight_decay: 1.0e-6
 
-device: cuda
-batch_size: 16
-num_epochs: 5
+data:
+  act: jog
+  data_path: ../../data
+  save_dir: ../../data/tmp
+  dim: 10
+  max_len: 200
+  mmap: false
+  data_type: rotationRate
+  batch_size: 4
+  test_ratio: 0.2
 
-test_ratio: 0.2
+trainer:
+  accelerator: gpu
+  max_epochs: 1
+  log_every_n_steps: 20

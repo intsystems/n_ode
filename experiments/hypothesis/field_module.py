@@ -16,11 +16,18 @@ from node.field_module import LitNode
 class LitNodeHype(LitNode):
     """ Complement base class with validation which computes liklyhood for full trajectories.
     """
+    def __init__(self, vf, optim_kwargs, odeint_kwargs):
+        super().__init__(vf, optim_kwargs, odeint_kwargs)
+
+        # counter and container for computing full trajectories liklyhood
+        self._cur_traj_num: int = None
+        self._cur_traj_info: list[list[torch.Tensor]] = []
+
     def validation_step(self, batch, batch_idx):
         traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
-        pred = self._odeint(z_0)
+        pred = self._odeint(z_0, num_steps=traj.shape[1])
         mask = self._get_trajectory_mask(duration, traj)
 
         # save tensors to compute liklyhood for the whole traj
@@ -50,51 +57,59 @@ class LitNodeHype(LitNode):
     def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx = 0):
         traj, duration, subj, traj_num = batch
 
-        if not hasattr(self, "_cur_traj_num"):
+        if self._cur_traj_num is None:
             self._cur_traj_num = traj_num[0]
-            self._cur_traj_info = []
 
         if not torch.all(traj_num == self._cur_traj_num):
             # last batch contains part of other trajectory
             # we now save other trajectory part
             # and compute liklyhood of full current trajctory
-            last_traj_info = self._cur_traj_info[-1]
+            last_traj_info: list[list[torch.Tensor]] = self._cur_traj_info[-1]
             self._cur_traj_info.pop()
-            split_indx = (traj_num == self._cur_traj_num).argmax()
+            split_indx = (traj_num == self._cur_traj_num).to(torch.int32).argmax() + 1
             self._cur_traj_info.append(list(
                 last_traj_info | select(lambda x: x[:split_indx])
             ))
 
-            lh = self._compute_lh()
+            _, full_traj, full_duration, full_pred = list(
+                zip(*self._cur_traj_info) |
+                select(lambda x: torch.concat(x))
+            )
+            full_mask = self._get_trajectory_mask(full_duration, full_traj)
+
+            lh = self._compute_lh(full_traj, full_pred, full_mask)
             self.log("Val/traj_liklyhood", lh, on_epoch=True)
 
             # save other trajectory part and num
-            self._cur_traj_info = list(
+            self._cur_traj_info = [list(
                 last_traj_info | select(lambda x: x[split_indx:])
-            )
+            )]
             self._cur_traj_num = traj_num[-1]
 
     def on_validation_epoch_end(self):
         # compute lh for last trajectory
-        lh = self._compute_lh()
-        self.log("Val/traj_liklyhood", lh, on_epoch=True)
-
-        # clean up after validation epoch
-        del self._cur_traj_info
-        del self._cur_traj_num
-        
-    def _compute_lh(self) -> torch.Tensor:
-        traj_num, traj, duration, pred = list(
+        _, full_traj, full_duration, full_pred = list(
             zip(*self._cur_traj_info) |
             select(lambda x: torch.concat(x))
         )
-        mask = self._get_trajectory_mask(duration, traj)
+        full_mask = self._get_trajectory_mask(full_duration, full_traj)
+        lh = self._compute_lh(full_traj, full_pred, full_mask)
+        self.log("Val/traj_liklyhood", lh, on_epoch=True)
 
+        # clean up after validation epoch
+        self._cur_traj_info.clear()
+        self._cur_traj_num = None
+
+    def _compute_lh(
+        self,
+        traj: torch.Tensor,
+        pred: torch.Tensor,
+        mask: torch.Tensor
+    ) -> torch.Tensor:
         lh = F.mse_loss(
             traj,
             pred * mask,
             reduction="sum"
         )
-        
+
         return lh
-    

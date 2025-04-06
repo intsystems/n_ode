@@ -15,18 +15,22 @@ class LitNode(L.LightningModule):
     def __init__(
         self,
         vf: nn.Module,
-        optim_kwargs: dict
+        optim_kwargs: dict,
+        odeint_kwargs: dict
     ):
         super().__init__()
 
         self.vf = vf
-        self._optim_kwargs = optim_kwargs
+        self.optim_kwargs = optim_kwargs
+        self.odeint_kwargs = odeint_kwargs
+
+        self.save_hyperparameters(ignore=["vf"], logger=False)
 
     def training_step(self, batch, batch_idx):
         traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
-        pred = self._odeint(z_0)
+        pred = self._odeint(z_0, num_steps=traj.shape[1])
         mask = self._get_trajectory_mask(duration, traj)
         
         # compute mean l2-loss for trajectories
@@ -44,7 +48,7 @@ class LitNode(L.LightningModule):
         traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
-        pred = self._odeint(z_0)
+        pred = self._odeint(z_0, num_steps=traj.shape[1])
         mask = self._get_trajectory_mask(duration, traj)
         
         # compute l2-loss
@@ -69,7 +73,7 @@ class LitNode(L.LightningModule):
         self.log("Train/relMAE", l1_loss_rel, on_step=True)
 
     def _compute_abs_rel_metric(
-        self, 
+        self,
         metric_f: Callable,
         traj: torch.Tensor,
         duration: torch.Tensor,
@@ -91,7 +95,7 @@ class LitNode(L.LightningModule):
             torch.zeros_like(traj).to(traj),
             reduction="none"
         )
-        rel_loss = rel_loss.sum(dim=-1)
+        rel_loss = rel_loss.sum(dim=-1) + 1e-6
         rel_loss = loss / rel_loss
 
         loss, rel_loss = list(
@@ -110,11 +114,11 @@ class LitNode(L.LightningModule):
 
         return mask
 
-    def _odeint(self, z_0: torch.Tensor):
+    def _odeint(self, z_0: torch.Tensor, num_steps: int) -> torch.Tensor:
         pred = odeint_adjoint(
                 self.vf,
                 z_0,
-                torch.arange(self.traj_len).to(z_0),
+                torch.arange(num_steps).to(z_0),
                 **self.odeint_kwargs
             )
         # make dims = (batch, duration, state_dim)
@@ -123,4 +127,4 @@ class LitNode(L.LightningModule):
         return pred
 
     def configure_optimizers(self):
-        return optim.AdamW(self.vf.parameters(), **self._optim_kwargs)
+        return optim.AdamW(self.vf.parameters(), **self.optim_kwargs)

@@ -1,6 +1,6 @@
 from typing import Optional
 from pathlib import Path
-from copy import deepcopy
+import shutil
 from omegaconf import OmegaConf
 
 from pipe import select, izip, where
@@ -19,6 +19,9 @@ from .traj_build import takens_traj
 import warnings
 
 class ActivityTrajDataset(Dataset):
+    """ Build phase trajectories for given activity.
+        Building is deterministic.
+    """
     def __init__(
         self,
         act: str,
@@ -43,7 +46,7 @@ class ActivityTrajDataset(Dataset):
 
         self._data_files = list(
             ("trajs.pt", "durations.pt", "subjs.pt", "traj_nums.pt") |
-            select(lambda data_name: Path(save_dir / data_name))
+            select(lambda data_name: save_dir / data_name)
         )
 
         # build trajectories if it's not exist or empty
@@ -81,41 +84,40 @@ class ActivityTrajDataset(Dataset):
                     data.append(cur_data)
                     traj_num += 1
 
-            # save data as tensors
-            any(
-                starmap(
-                    lambda data_list, i: torch.save(torch.from_numpy(np.concat(data_list)), self._data_files[i]),
-                    list(zip(*data) | izip(range(3)))
-                )
-            )
+            # save data as tensors on disk
+            for data_component, i in zip(*data) | izip(range(len(self._data_files))):
+                concat_data_component = torch.from_numpy(np.concat(data_component))
+                if concat_data_component.dtype is torch.float64:
+                    concat_data_component = concat_data_component.to(torch.float32)
+                torch.save(concat_data_component, self._data_files[i])
         else:
             warnings.warn(f"Dir {save_dir} already exist, don't rebuild trajectires.")
 
         # load files in the desired mmap mode
-        self._data = list(
+        self._data_tuples = list(
             self._data_files |
             select(lambda data_f: torch.load(data_f, weights_only=True, mmap=self._mmap))
         )
 
         # count number of traj slices
-        self._num_trajs = len(self._data[0])
+        self._num_trajs = len(self._data_tuples[0])
 
     def __len__(self):
         return self._num_trajs
     
     @property
     def num_trajs(self):
-        """ returns total number of full trajectories in the dataset
+        """ returns total number of **full** trajectories in the dataset
         """
         return torch.load(self._data_files[-1], weights_only=True, mmap=self._mmap)[-1].item()
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> tuple[torch.Tensor]:
         return tuple(
-            self._data |
+            self._data_tuples |
             select(lambda data_tensor: data_tensor[index])
         )
     
-    def __getitems__(self, indexes):
+    def __getitems__(self, indexes) -> tuple[torch.Tensor]:
         return self.__getitem__(indexes)
 
 
@@ -132,24 +134,28 @@ class ActivityDataModule(L.LightningDataModule):
         batch_size: int = 32,
         test_ratio: float = 0.2     # по полным траекториям
     ):
+        super().__init__()
+
         self.batch_size = batch_size
         self.test_ratio = test_ratio
 
-        self.dataset_kwargs = deepcopy(locals().keys())
-        self.dataset_kwargs = list(
-            filter(lambda key: key not in ("batch_size", "test_ratio"), self.dataset_kwargs)
+        dataset_kwargs_keys = list(
+            filter(lambda k: k not in {"batch_size", "test_ratio", "self", "__class__"}, locals().keys())
         )
-        self.dataset_kwargs = {deepcopy(locals()[key]) for key in self.dataset_kwargs}
+        self.dataset_kwargs = {
+            key: locals()[key]
+            for key in dataset_kwargs_keys
+        }
 
     def prepare_data(self):
-        # build trajectories for the first time
+        # build trajectories and save them on disk
         ActivityTrajDataset(**self.dataset_kwargs)
 
     def setup(self, stage):
-        # load ready trajectories
-        # split them for dataloaders
+        # load trajectories from disk
         dataset = ActivityTrajDataset(**self.dataset_kwargs)
         num_trajs = dataset.num_trajs
+        # split FULL trajectories according to "test_ratio"
         split_index = max(
             range(len(dataset)) |
             where(lambda i: dataset[i][-1] < int((1 - self.test_ratio) * num_trajs))
@@ -158,18 +164,29 @@ class ActivityDataModule(L.LightningDataModule):
         self.val_dataset = Subset(dataset, list(range(split_index, len(dataset))))
 
     def train_dataloader(self):
+        """As dataset can give already correct batched tuples with __getitems__,
+            identical collate_fn is used.
+        """
         return DataLoader(
             self.train_dataset,
             self.batch_size,
-            shuffle=True
+            shuffle=True,
+            collate_fn=lambda x: x
         )
-    
+
     def val_dataloader(self):
+        """As dataset can give already correct batched tuples with __getitems__,
+            identical collate_fn is used.
+        """
         return DataLoader(
             self.val_dataset,
             self.batch_size,
-            shuffle=False
+            shuffle=False,
+            collate_fn=lambda x: x
         )
-    
+
     def predict_dataloader(self):
         return self.val_dataloader()
+
+    def teardown(self, stage):
+        shutil.rmtree(self.dataset_kwargs["save_dir"])

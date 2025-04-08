@@ -1,2 +1,4 @@
+# local log files
 node
 wandb
+artifacts

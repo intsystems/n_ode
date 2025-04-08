@@ -9,7 +9,7 @@
 ├── experiments
 ├── LICENSE.txt
 ├── litreview.md
-├── node                # common components for experiments
+├── node                # global components for experiments
 ├── poetry.lock
 ├── pyproject.toml
 ├── README.md

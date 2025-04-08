@@ -153,15 +153,15 @@ class ActivityDataModule(L.LightningDataModule):
 
     def setup(self, stage):
         # load trajectories from disk
-        dataset = ActivityTrajDataset(**self.dataset_kwargs)
-        num_trajs = dataset.num_trajs
+        self.dataset = ActivityTrajDataset(**self.dataset_kwargs)
+        num_trajs = self.dataset.num_trajs
         # split FULL trajectories according to "test_ratio"
         split_index = max(
-            range(len(dataset)) |
-            where(lambda i: dataset[i][-1] < int((1 - self.test_ratio) * num_trajs))
+            range(len(self.dataset)) |
+            where(lambda i: self.dataset[i][-1] < int((1 - self.test_ratio) * num_trajs))
         )
-        self.train_dataset = Subset(dataset, list(range(split_index)))
-        self.val_dataset = Subset(dataset, list(range(split_index, len(dataset))))
+        self.train_dataset = Subset(self.dataset, list(range(split_index)))
+        self.val_dataset = Subset(self.dataset, list(range(split_index, len(self.dataset))))
 
     def train_dataloader(self):
         """As dataset can give already correct batched tuples with __getitems__,

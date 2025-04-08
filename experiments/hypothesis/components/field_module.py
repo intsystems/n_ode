@@ -10,7 +10,18 @@ from torchdiffeq import odeint_adjoint
 
 import lightning as L
 
-from node.field_module import LitNode
+from node.field_module import LitNode, get_trajectory_mask
+
+def compute_lh(
+    traj: torch.Tensor,
+    pred: torch.Tensor,
+    mask: torch.Tensor
+) -> torch.Tensor:
+    return F.mse_loss(
+        traj,
+        pred * mask,
+        reduction="sum"
+    )
 
 
 class LitNodeHype(LitNode):
@@ -27,8 +38,8 @@ class LitNodeHype(LitNode):
         traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
-        pred = self._odeint(z_0, num_steps=traj.shape[1])
-        mask = self._get_trajectory_mask(duration, traj)
+        pred = self.forward(z_0, num_steps=traj.shape[1])
+        mask = get_trajectory_mask(duration, traj)
 
         # save tensors to compute liklyhood for the whole traj
         self._cur_traj_info.append([traj_num, traj, duration, pred])
@@ -75,9 +86,9 @@ class LitNodeHype(LitNode):
                 zip(*self._cur_traj_info) |
                 select(lambda x: torch.concat(x))
             )
-            full_mask = self._get_trajectory_mask(full_duration, full_traj)
+            full_mask = get_trajectory_mask(full_duration, full_traj)
 
-            lh = self._compute_lh(full_traj, full_pred, full_mask)
+            lh = compute_lh(full_traj, full_pred, full_mask)
             self.log("Val/traj_liklyhood", lh, on_epoch=True)
 
             # save other trajectory part and num
@@ -92,24 +103,10 @@ class LitNodeHype(LitNode):
             zip(*self._cur_traj_info) |
             select(lambda x: torch.concat(x))
         )
-        full_mask = self._get_trajectory_mask(full_duration, full_traj)
-        lh = self._compute_lh(full_traj, full_pred, full_mask)
+        full_mask = get_trajectory_mask(full_duration, full_traj)
+        lh = compute_lh(full_traj, full_pred, full_mask)
         self.log("Val/traj_liklyhood", lh, on_epoch=True)
 
         # clean up after validation epoch
         self._cur_traj_info.clear()
         self._cur_traj_num = None
-
-    def _compute_lh(
-        self,
-        traj: torch.Tensor,
-        pred: torch.Tensor,
-        mask: torch.Tensor
-    ) -> torch.Tensor:
-        lh = F.mse_loss(
-            traj,
-            pred * mask,
-            reduction="sum"
-        )
-
-        return lh

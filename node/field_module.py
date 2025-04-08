@@ -11,6 +11,15 @@ from torchdiffeq import odeint_adjoint
 import lightning as L
 
 
+def get_trajectory_mask(durations: torch.Tensor, traj: torch.Tensor) -> torch.Tensor:
+    mask = torch.ones_like(traj).to(traj.device)
+    for i in range(mask.shape[0]):
+        # mask out padding vectors in trajectory
+        mask[i, durations[i]: , ...] = 0.
+
+    return mask
+
+
 class LitNode(L.LightningModule):
     def __init__(
         self,
@@ -30,8 +39,8 @@ class LitNode(L.LightningModule):
         traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
-        pred = self._odeint(z_0, num_steps=traj.shape[1])
-        mask = self._get_trajectory_mask(duration, traj)
+        pred = self.forward(z_0, num_steps=traj.shape[1])
+        mask = get_trajectory_mask(duration, traj)
         
         # compute mean l2-loss for trajectories
         l2_loss, _ = self._compute_abs_rel_metric(
@@ -48,8 +57,8 @@ class LitNode(L.LightningModule):
         traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
-        pred = self._odeint(z_0, num_steps=traj.shape[1])
-        mask = self._get_trajectory_mask(duration, traj)
+        pred = self.forward(z_0, num_steps=traj.shape[1])
+        mask = get_trajectory_mask(duration, traj)
         
         # compute l2-loss
         l2_loss, l2_loss_rel = self._compute_abs_rel_metric(
@@ -106,15 +115,7 @@ class LitNode(L.LightningModule):
 
         return loss, rel_loss
 
-    def _get_trajectory_mask(self, durations: torch.Tensor, traj: torch.Tensor) -> torch.Tensor:
-        mask = torch.ones_like(traj).to(traj.device)
-        for i in range(mask.shape[0]):
-            # mask out padding vectors in trajectory
-            mask[i, durations[i]: , ...] = 0.
-
-        return mask
-
-    def _odeint(self, z_0: torch.Tensor, num_steps: int) -> torch.Tensor:
+    def forward(self, z_0: torch.Tensor, num_steps: int) -> torch.Tensor:
         pred = odeint_adjoint(
                 self.vf,
                 z_0,

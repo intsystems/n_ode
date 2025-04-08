@@ -1,22 +1,37 @@
-""" Script to launch model training
-    Editable
+""" Example script to launch model training.
+    Editable.
 """
 import argparse
 from pathlib import Path
 from omegaconf import OmegaConf, DictConfig
+
+import torch
 
 import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from node.field_model import VectorFieldMLP
-from field_module import LitNodeHype
 from node.data_modules import ActivityDataModule
+from components.field_module import LitNodeHype
 
 
-def train_on_activity(
-    config: DictConfig
-):
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config-path", type=str, default="train_config.yaml",
+                        required=True, help="Path to the configuration file.")
+    args = parser.parse_args()
+
+    # load config file
+    config: DictConfig = OmegaConf.load(args.config_path)
+    # transform some fields to correct types
+    config.data.data_path = Path(config.data.data_path)
+    config.data.save_dir = Path(config.data.save_dir)
+
+    # set rand seed
+    torch.manual_seed(config.seed)
+
+    # choose vector field
     vf = VectorFieldMLP(**dict(config.vf))
     lit_node = LitNodeHype(vf, dict(config.optim), dict(config.odeint))
 
@@ -32,6 +47,7 @@ def train_on_activity(
         tags=["train", "unnormalized", config.data.act, "mlp_tanh"],
         config=dict(config),
         log_model="all",
+        checkpoint_name=config.data.act + "_model",
         # mode="disabled" # debug
     )
 
@@ -43,19 +59,3 @@ def train_on_activity(
     )
 
     trainer.fit(lit_node, datamodule=activity_data)
-
-
-if __name__ == "__main__":
-    # possibility to run as separate script
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config-path", type=str, default="config.yaml",
-                        required=True, help="Path to the configuration file.")
-    args = parser.parse_args()
-
-    # load config file
-    config: DictConfig = OmegaConf.load(args.config_path)
-    # transform some fields to correct types
-    config.data.data_path = Path(config.data.data_path)
-    config.data.save_dir = Path(config.data.save_dir)
-
-    train_on_activity(config)

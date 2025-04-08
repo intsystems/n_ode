@@ -11,7 +11,7 @@ optim:
   weight_decay: 1.0e-6
 
 data:
-  act: jog
+  act: ups
   data_path: ../../data
   save_dir: ../../data/tmp
   dim: 10
@@ -24,4 +24,7 @@ data:
 trainer:
   accelerator: gpu
   max_epochs: 1
+  max_steps: 10
   log_every_n_steps: 20
+
+seed: 129

@@ -1,0 +1,30 @@
+vf:
+  input_dim: 10
+  hidden_dim: 50
+  num_layers: 2
+odeint:
+  method: dopri5
+  atol: 1.0e-2
+  rtol: 1.0e-2
+optim:
+  lr: 5.0e-4
+  weight_decay: 1.0e-6
+
+data:
+  act: ups
+  data_path: ../../data
+  save_dir: ../../data/tmp
+  dim: 10
+  max_len: 200
+  mmap: false
+  data_type: rotationRate
+  batch_size: 4
+  test_ratio: 0.2
+
+trainer:
+  accelerator: gpu
+  max_epochs: 1
+  max_steps: 10
+  log_every_n_steps: 5
+
+seed: 129

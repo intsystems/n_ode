@@ -1,0 +1,73 @@
+\documentclass[referee, pdflatex, sn-mathphys-num]{sn-jnl}
+
+\usepackage{hyperref}
+\usepackage{subfigure}
+\usepackage{graphicx} 
+\usepackage{amsmath,amsfonts,amssymb,amsthm,mathtools}
+\usepackage{icomma}
+\usepackage[english]{babel}
+% tables
+\usepackage{array,tabularx,tabulary,booktabs}
+\usepackage{multirow}
+\usepackage{diagbox}
+
+\theoremstyle{definition}
+\newtheorem{Def}{Definition}
+\theoremstyle{plain}
+\newtheorem{Lem}{Lemma}
+\newtheorem{Th}{Theorem}
+
+\newcommand{\bz}{\ensuremath{\mathbf{z}}}
+
+\begin{document}
+	
+	\title{Time series classification approaches through NeuralODE}
+	
+	\author*[1]{\fnm{Kirill} \sur{Semkin}}\email{semkin.ki32@gmail.com}
+	\author*[2]{\fnm{Vadim} \sur{Strijov}}\email{strijov@forecsys.ru}
+	
+	\affil*[1]{\orgname{MIPT} \orgaddress{\city{Moscow}} \country{Russia}}
+	\affil*[2]{\orgname{MIPT} \orgaddress{\city{Moscow}} \country{Russia}}
+	
+	\keywords{time series; classification; dynamical systems; NeuralODE; inertial measurement unit}
+	
+	\maketitle
+	
+	\begin{abstract}
+		
+		The task of time series classification is to assign class label to given time series. The number of classes is fixed. It is assumed that each class corresponds to some dynamical system. Each system generates phase trajectories within some probabilistic model. These trajectories are then mapped into empirical observations. The paper investigates how to restore dynamical systems out of experimental data using NeuralODE. We consider fixed and bayesian approaches to defining dynamical systems' parameters. Two classification principles are introduced: bayesian testing and transition to dynamical system's parameters space. Taken's theorem is used to approximate true phase trajectories. At last, time series from inertial measurement unit are classified using given techniques and compared with other machine learning models.
+		
+	\end{abstract}
+	
+	\section{Introduction}\label{Intro}
+	
+		The paper introduces and analyzes methods for time series classification. By \emph{time series} we understand samples of some \emph{stochastic process}. Consider $x(t)$ to be stochastic process defined on $t \in [0, T]$. Take increasing time stamps $0 \le t_1 < \ldots < t_n \le T$ and define time series as $x_i := x(t_i), \, i \in 1 \ldots n$. So time series are stochastic variables by definition. \emph{Classification} of time series on $M$ classes is a process of assigning a \emph{label} $y \in 1 \ldots M$ to a given time series $x_i$.
+		
+		% Applications
+		Time series classification finds a lot of applications. It is used in medicine to detect arrhythmias or other heart conditions by EEG~\cite{application_eeg_1}. Or to identify seizures and sleep stages from brainwave data~\cite{application_eeg_2}. In speech and audio processing it is used to recognize human emotions from speech signals~\cite{application_sound_1} or bird species from audio recordings~\cite{application_sound_2}. Other fields of application are human activity recognition from wearable sensors~\cite{application_hac} and weather forecasting~\cite{application_weather}. The latter two will be explored in the paper's experiment later.
+		
+		% Methods review
+		There are many methods for time series classification in the literature. \emph{Distance-based} approaches rely on measuring similarity between time series using distance metrics. The metric can be defined using Dynamic Time Warping~\cite{dtw} and the k-Nearest-Neighbors (k-NN) classifier can be used then~\cite{knn_dtw}. \emph{Feature-based} approaches extract finite set of statistical~\cite{stat_feat_1, stat_feat_2} or spectral~\cite{fouirer_feat} features from time series for further classification. \emph{Deep learning} approaches uses neural networks to automatically learn time series features from raw train data. Convolutional neural networks~\cite{application_eeg_1, application_eeg_2}, recurrent neural networks (RNN)~\cite{lstm_feat} or their combination~\cite{application_sound_1, application_hac, application_weather} are designed to process sequential data like time series. Classification with the RNN will be compared to our method in the experiment section.
+		
+		The underlying mathematical model for time series in the paper is a \emph{dynamical system}. By this we understand a time-invariant \emph{ordinary differential equation} of the form
+		\begin{equation}\label{eq:lat_dyn}
+			\begin{cases}
+				\bz = f(\bz), \\
+				\bz(0) = \bz_0,
+			\end{cases}
+		\end{equation}
+		where $\bz \in \mathbb{R}^m$, $f(\bz): \mathbb{R}^m \to \mathbb{R}^m$, $\bz_0$ is a starting point. \textit{Phase trajectory} $\bz(t)$ is a solution of (\ref{eq:lat_dyn}) for $t \in [0, T]$. Note that the phase trajectory is not directly observed so we call the dynamical system \emph{latent}. Next, introduce an \emph{observation function} $\phi: \mathbb{R}^m \to \mathbb{R}$. It maps phase trajectory to intermediate deterministic representation $y(t) = \phi \big( \bz(t) \big)$. Finally, we introduce a stochastic field $h:  \mathbb{R} \times [0, T] \to \Omega$. It maps 
+		intermediate representation to observable stochastic process $x(t) = h(y(t), t)$ introduced at the begging. The process takes random variables on probability space $(\Omega, \mathcal{F}, \mathbb{P})$. The stochastic field $h$ can be treated as adding noise to original observations $y(t)$.
+		
+		The reason for introducing an intermediate process $y$ is to be able to use Takens theorem \cite{takens2006detecting}. It basically states that if can estimate $y(t)$ from $x(t)$ then we are able to reconstruct latent phase trajectory $z(t)$. It is important for classification because we \emph{associate each class with its own dynamical system} $f_y(\cdot), \, y \in 1 \ldots M$. If we know all $f_y(\cdot)$ and $z(t)$ is given, we can inference the dynamical system that generated this phase trajectory. Thus we can inference class label and perform classification.
+		
+		
+		
+		
+		
+		
+		
+		
+		\bibliography{lit.bib}
+	
+ \end{document}

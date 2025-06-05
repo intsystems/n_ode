@@ -1,0 +1,7 @@
+data:
+  act: ups
+  dim: 10
+  max_len: 200
+  data_type: rotationRate
+  batch_size: 4
+  test_ratio: 0.2

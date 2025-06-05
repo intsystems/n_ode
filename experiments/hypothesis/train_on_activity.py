@@ -18,44 +18,50 @@ from components.field_module import LitNodeHype
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config-path", type=str, default="train_config.yaml",
-                        required=True, help="Path to the configuration file.")
+    parser.add_argument("data_config")
+    parser.add_argument("train_config")
     args = parser.parse_args()
 
-    # load config file
-    config: DictConfig = OmegaConf.load(args.config_path)
+    # load config files
+    data_config: DictConfig = OmegaConf.load(args.data_config)
+    train_config: DictConfig = OmegaConf.load(args.train_config)
     # transform some fields to correct types
-    config.data.data_path = Path(config.data.data_path)
-    config.data.save_dir = Path(config.data.save_dir)
+    data_config.data.data_path = Path(data_config.data.data_path)
+    data_config.data.save_dir = Path(data_config.data.save_dir)
 
     # set rand seed
-    torch.manual_seed(config.seed)
+    torch.manual_seed(train_config.seed)
 
     # choose vector field
-    vf = VectorFieldMLP(**dict(config.vf))
-    lit_node = LitNodeHype(vf, dict(config.optim), dict(config.odeint))
+    vf = VectorFieldMLP(**dict(train_config.vf))
+    lit_node = LitNodeHype(vf, dict(train_config.optim), dict(train_config.odeint))
 
     # create lightning data module
-    # trajectories will be stored in a temporary files as they are not train artifacts
     activity_data = ActivityDataModule(
-        **dict(config.data)
+        **dict(data_config.data)
     )
 
     logger = WandbLogger(
         project="node",
         group="hypothesis",
-        tags=["train", "unnormalized", config.data.act, "mlp_tanh"],
-        config=dict(config),
+        tags=train_config.tags,
+        config=dict(train_config) | dict(data_config),
         log_model="all",
-        checkpoint_name=config.data.act + "_model",
+        # it only attributes to wandb cloud
+        checkpoint_name=f"{data_config.data.act}_checkpoint",
         # mode="disabled" # debug
     )
 
-    checkpoint_callback = ModelCheckpoint(monitor="Val/MSE", mode="min")
+    checkpoint_callback = ModelCheckpoint(
+        filename=f"{data_config.data.act}_checkpoint",
+        #monitor="Val/MSE",
+        #mode="min"
+    )
     trainer = L.Trainer(
         logger=logger,
         callbacks=[checkpoint_callback],
-        **dict(config.trainer)
+        **dict(train_config.trainer)
     )
 
     trainer.fit(lit_node, datamodule=activity_data)
+    print(checkpoint_callback.best_model_path)

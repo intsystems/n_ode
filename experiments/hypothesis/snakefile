@@ -1,0 +1,26 @@
+ACTIVITIES = ["ups"]
+DATA_PATH = "../../data"
+SAVE_DIR_ROOT = "act_data"
+
+# train:
+#     input:
+#         "config/{act}/data.yaml",
+#         "config/{act}/train.yaml",
+#         "train_on_activity.py"
+#     output:
+#         "checkpoint"
+#     run:
+
+rule all:
+    input:
+        expand(f"{SAVE_DIR_ROOT}/{{act}}/dataset.pkl", act=ACTIVITIES)
+
+rule make_dataset:
+    input:
+        "make_dataset.py",
+        config_path = "config/{act}/data.yaml"
+    output:
+        f"{SAVE_DIR_ROOT}/{{act}}/dataset.pkl"
+    shell: 
+        # need to remove auto created dirs before
+        f"rm -r {SAVE_DIR_ROOT}; python make_dataset.py {{input.config_path}} {DATA_PATH} {SAVE_DIR_ROOT}/{{wildcards.act}}"

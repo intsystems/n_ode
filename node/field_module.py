@@ -120,6 +120,7 @@ class LitNode(L.LightningModule):
                 self.vf,
                 z_0,
                 torch.arange(num_steps).to(z_0),
+                options={"dtype": torch.float32},
                 **self.odeint_kwargs
             )
         # make dims = (batch, duration, state_dim)

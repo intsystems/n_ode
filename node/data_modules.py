@@ -1,6 +1,6 @@
 from typing import Optional
 from pathlib import Path
-import shutil
+import pickle
 from omegaconf import OmegaConf
 
 from pipe import select, izip, where
@@ -18,6 +18,7 @@ from .traj_build import takens_traj
 
 import warnings
 
+
 class ActivityTrajDataset(Dataset):
     """ Build phase trajectories for given activity.
         Building is deterministic.
@@ -29,7 +30,6 @@ class ActivityTrajDataset(Dataset):
         max_len: int,
         data_path: Path,
         save_dir: Path,            # storage file
-        mmap: Optional[bool],
         data_type: str = "rotationRate"
     ):
         super().__init__()
@@ -40,67 +40,69 @@ class ActivityTrajDataset(Dataset):
         self.max_len = max_len
         self.data_type = data_type
         self.save_dir = save_dir
-        self._mmap = mmap
-        # load config files for data
+        # load config file for data
         self.data_params = OmegaConf.load(data_path / "dataset_params.yaml")
 
-        self._data_files = list(
-            ("trajs.pt", "durations.pt", "subjs.pt", "traj_nums.pt") |
-            select(lambda data_name: save_dir / data_name)
+        self._data_files = {
+            name: save_dir / (name + ".pt")
+            for name in ("trajs", "durations", "subjs", "traj_nums")
+        }
+
+        if self.save_dir.exists():
+            raise ValueError("Save dir already exists.")
+        
+        # build trajectories
+        print("Building trajectories")
+
+        self.save_dir.mkdir(parents=True)
+
+        # get labeled magnitudes of chosen signal
+        series_df = creat_time_series(
+            str(data_path),
+            set_data_types([self.data_type]),
+            [self.act],
+            [self.data_params.activity_codes[self.act]]
         )
 
-        # build trajectories if it's not exist or empty
-        if not self.save_dir.exists() or len(list(self.save_dir.iterdir())) == 0:
-            print("Building trajectories")
+        data = []
+        # initial trajectory number for slices
+        traj_num = 0
+        for act_code in self.data_params.activity_codes[self.act]:
+            for subj_id in range(self.data_params.num_participants):
+                print(f"Activity: {self.act}; Act_code: {act_code}; Participant: {subj_id}")
 
-            self.save_dir.mkdir(parents=True, exist_ok=True)
+                # get time series for current participant and activity code
+                series = series_df.loc[
+                    (series_df["id"] == subj_id) & (
+                        series_df["trial"] == act_code),
+                    [self.data_type]
+                ].values
 
-            # get labeled magnitudes of chosen signal
-            series_df = creat_time_series(
-                str(data_path),
-                set_data_types([self.data_type]),
-                [self.act],
-                [self.data_params.activity_codes[self.act]]
-            )
+                cur_data = takens_traj(series, self.dim, self.max_len)
+                cur_num_traj = cur_data[0].shape[0]
+                cur_data = list(cur_data) + [[subj_id] * cur_num_traj] + [[traj_num] * cur_num_traj]
 
-            data = []
-            # inital trajectory number for slices
-            traj_num = 0
-            for act_code in self.data_params.activity_codes[self.act]:
-                for subj_id in range(self.data_params.num_participants):
-                    print(f"Activity: {self.act}; Act_code: {act_code}; Participant: {subj_id}")
+                data.append(cur_data)
+                traj_num += 1
 
-                    # get time series for current participant and activity code
-                    series = series_df.loc[
-                        (series_df["id"] == subj_id) & (
-                            series_df["trial"] == act_code),
-                        [self.data_type]
-                    ].values
+        # save data as tensors on disk
+        for data_component, component_name in zip(*data) | izip(self._data_files):
+            concat_data_component = torch.from_numpy(np.concat(data_component))
+            if concat_data_component.dtype is torch.float64:
+                concat_data_component = concat_data_component.to(torch.float32)
+            torch.save(concat_data_component, self._data_files[component_name])
 
-                    cur_data = takens_traj(series, self.dim, self.max_len)
-                    cur_num_traj = cur_data[0].shape[0]
-                    cur_data = list(cur_data) + [[subj_id] * cur_num_traj] + [[traj_num] * cur_num_traj]
+        del data
+        del series_df
 
-                    data.append(cur_data)
-                    traj_num += 1
-
-            # save data as tensors on disk
-            for data_component, i in zip(*data) | izip(range(len(self._data_files))):
-                concat_data_component = torch.from_numpy(np.concat(data_component))
-                if concat_data_component.dtype is torch.float64:
-                    concat_data_component = concat_data_component.to(torch.float32)
-                torch.save(concat_data_component, self._data_files[i])
-        else:
-            warnings.warn(f"Dir {save_dir} already exist, don't rebuild trajectires.")
-
-        # load files in the desired mmap mode
-        self._data_tuples = list(
-            self._data_files |
-            select(lambda data_f: torch.load(data_f, weights_only=True, mmap=self._mmap))
-        )
+        # load files
+        self._data_components = {
+            name: torch.load(path, weights_only=True)
+            for name, path in self._data_files.items()
+        }
 
         # count number of traj slices
-        self._num_trajs = len(self._data_tuples[0])
+        self._num_trajs = len(self._data_components["trajs"])
 
     def __len__(self):
         return self._num_trajs
@@ -109,11 +111,11 @@ class ActivityTrajDataset(Dataset):
     def num_trajs(self):
         """ returns total number of **full** trajectories in the dataset
         """
-        return torch.load(self._data_files[-1], weights_only=True, mmap=self._mmap)[-1].item()
+        return torch.load(self._data_files["traj_nums"], weights_only=True).max().item()
 
     def __getitem__(self, index) -> tuple[torch.Tensor]:
         return tuple(
-            self._data_tuples |
+            self._data_components.values() |
             select(lambda data_tensor: data_tensor[index])
         )
     
@@ -129,7 +131,6 @@ class ActivityDataModule(L.LightningDataModule):
         max_len: int,
         data_path: Path,
         save_dir: Path,            # storage file
-        mmap: Optional[bool],
         data_type: str = "rotationRate",
         batch_size: int = 32,
         test_ratio: float = 0.2     # по полным траекториям
@@ -148,12 +149,18 @@ class ActivityDataModule(L.LightningDataModule):
         }
 
     def prepare_data(self):
-        # build trajectories and save them on disk
-        ActivityTrajDataset(**self.dataset_kwargs)
+        save_dir = Path(self.dataset_kwargs["save_dir"])
+
+        if not save_dir.exists():
+            # build trajectories and save them on disk
+            dataset = ActivityTrajDataset(**self.dataset_kwargs)
+            with open(save_dir / "dataset.pkl", "wb") as f:
+                pickle.dump(dataset, f)
 
     def setup(self, stage):
         # load trajectories from disk
-        self.dataset = ActivityTrajDataset(**self.dataset_kwargs)
+        with open(Path(self.dataset_kwargs["save_dir"]) / "dataset.pkl", "rb") as f:
+            self.dataset: ActivityTrajDataset = pickle.load(f)
         num_trajs = self.dataset.num_trajs
         # split FULL trajectories according to "test_ratio"
         split_index = max(
@@ -187,6 +194,3 @@ class ActivityDataModule(L.LightningDataModule):
 
     def predict_dataloader(self):
         return self.val_dataloader()
-
-    def teardown(self, stage):
-        shutil.rmtree(self.dataset_kwargs["save_dir"])

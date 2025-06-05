@@ -9,11 +9,13 @@ odeint:
 optim:
   lr: 5.0e-4
   weight_decay: 1.0e-6
+data:
+  batch_size: 4
+  test_ratio: 0.2
 trainer:
   accelerator: cpu
   max_epochs: 1
   max_steps: 10
   log_every_n_steps: 20
 
-tags: ["train", "unnormalized", "ups", "mlp_tanh"]
 seed: 129

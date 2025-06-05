@@ -2,3 +2,5 @@
 node
 wandb
 artifacts
+.checkpoints
+act_data

@@ -1,0 +1,21 @@
+vf:
+  input_dim: 10
+  hidden_dim: 50
+  num_layers: 2
+odeint:
+  method: dopri5
+  atol: 1.0e-2
+  rtol: 1.0e-2
+optim:
+  lr: 5.0e-4
+  weight_decay: 1.0e-6
+data:
+  batch_size: 4
+  test_ratio: 0.2
+trainer:
+  accelerator: cpu
+  max_epochs: 1
+  max_steps: 10
+  log_every_n_steps: 20
+
+seed: 129

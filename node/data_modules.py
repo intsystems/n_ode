@@ -2,6 +2,7 @@ from typing import Optional
 from pathlib import Path
 import pickle
 from omegaconf import OmegaConf
+from pydantic import BaseModel
 
 from pipe import select, izip, where
 from itertools import starmap
@@ -43,6 +44,7 @@ class ActivityTrajDataset(Dataset):
         # load config file for data
         self.data_params = OmegaConf.load(data_path / "dataset_params.yaml")
 
+        # all data artifacts to generate
         self._data_files = {
             name: save_dir / (name + ".pt")
             for name in ("trajs", "durations", "subjs", "traj_nums")
@@ -126,14 +128,14 @@ class ActivityTrajDataset(Dataset):
 class ActivityDataModule(L.LightningDataModule):
     def __init__(
         self,
-        act: str,
-        dim: int,
-        max_len: int,
-        data_path: Path,
         save_dir: Path,            # storage file
-        data_type: str = "rotationRate",
+        act: Optional[str] = None,
+        dim: Optional[int] = None,
+        max_len: Optional[int] = None,
+        data_path: Optional[Path] = None,
+        data_type: Optional[str] = "rotationRate",
         batch_size: int = 32,
-        test_ratio: float = 0.2     # по полным траекториям
+        test_ratio: float = 0.2,     # по полным траекториям
     ):
         super().__init__()
 

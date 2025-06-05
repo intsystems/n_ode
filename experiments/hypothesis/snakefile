@@ -1,4 +1,4 @@
-ACTIVITIES = ["ups"]
+ACTIVITIES = ["ups", "jog"]
 DATA_PATH = "../../data"
 SAVE_DIR_ROOT = "act_data"
 
@@ -11,9 +11,26 @@ SAVE_DIR_ROOT = "act_data"
 #         "checkpoint"
 #     run:
 
+# ~ train all
 rule all:
     input:
-        expand(f"{SAVE_DIR_ROOT}/{{act}}/dataset.pkl", act=ACTIVITIES)
+        expand(".checkpoints/{act}_checkpoint.ckpt", act=ACTIVITIES)
+
+# rule classify:
+
+rule train:
+    input:
+        "train_on_activity.py",
+        f"{SAVE_DIR_ROOT}/{{act}}/dataset.pkl",
+        config_train_path = "config/{act}/train.yaml",
+        # for wandb config saving
+        config_data_path = "config/{act}/data.yaml"
+    output:
+        ".checkpoints/{act}_checkpoint.ckpt"
+    shell:
+        f"""
+        python train_on_activity.py {{input.config_train_path}} {SAVE_DIR_ROOT}/{{wildcards.act}} {{input.config_data_path}}
+        """
 
 rule make_dataset:
     input:
@@ -21,6 +38,9 @@ rule make_dataset:
         config_path = "config/{act}/data.yaml"
     output:
         f"{SAVE_DIR_ROOT}/{{act}}/dataset.pkl"
-    shell: 
+    shell:
         # need to remove auto created dirs before
-        f"rm -r {SAVE_DIR_ROOT}; python make_dataset.py {{input.config_path}} {DATA_PATH} {SAVE_DIR_ROOT}/{{wildcards.act}}"
+        f"""
+        rm -r {SAVE_DIR_ROOT}/{{wildcards.act}}; 
+        python make_dataset.py {{input.config_path}} {DATA_PATH} {SAVE_DIR_ROOT}/{{wildcards.act}}
+        """

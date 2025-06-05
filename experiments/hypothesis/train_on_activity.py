@@ -18,16 +18,15 @@ from components.field_module import LitNodeHype
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("data_config")
     parser.add_argument("train_config")
+    parser.add_argument("save_dir", type=Path)
+    parser.add_argument("data_config")
     args = parser.parse_args()
 
     # load config files
-    data_config: DictConfig = OmegaConf.load(args.data_config)
     train_config: DictConfig = OmegaConf.load(args.train_config)
+    data_config: DictConfig = OmegaConf.load(args.data_config)
     # transform some fields to correct types
-    data_config.data.data_path = Path(data_config.data.data_path)
-    data_config.data.save_dir = Path(data_config.data.save_dir)
 
     # set rand seed
     torch.manual_seed(train_config.seed)
@@ -38,13 +37,14 @@ if __name__ == "__main__":
 
     # create lightning data module
     activity_data = ActivityDataModule(
-        **dict(data_config.data)
+        save_dir=args.save_dir,
+        **dict(train_config.data)
     )
 
     logger = WandbLogger(
         project="node",
         group="hypothesis",
-        tags=train_config.tags,
+        tags=["train", "unnormalized", "mlp_tanh"],
         config=dict(train_config) | dict(data_config),
         log_model="all",
         # it only attributes to wandb cloud
@@ -53,7 +53,10 @@ if __name__ == "__main__":
     )
 
     checkpoint_callback = ModelCheckpoint(
+        dirpath=".checkpoints",
         filename=f"{data_config.data.act}_checkpoint",
+        # results will be overwritten locally
+        enable_version_counter=False,
         #monitor="Val/MSE",
         #mode="min"
     )

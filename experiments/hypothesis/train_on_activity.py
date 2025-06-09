@@ -9,7 +9,7 @@ import torch
 
 import lightning as L
 from lightning.pytorch.loggers import WandbLogger
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
 from node.field_model import VectorFieldMLP
 from node.data_modules import ActivityDataModule
@@ -52,17 +52,23 @@ if __name__ == "__main__":
         **dict(wandb_config)
     )
 
+    earlystopping_callback = EarlyStopping(
+        monitor="Val/MSE",
+        mode="min",
+        min_delta=1e-3,
+        patience=15
+    )
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints",
         filename=f"{data_config.data.act}_checkpoint",
         # results will be overwritten locally
         enable_version_counter=False,
-        #monitor="Val/MSE",
-        #mode="min"
+        monitor="Val/MSE",
+        mode="min"
     )
     trainer = L.Trainer(
         logger=logger,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback, earlystopping_callback],
         **dict(train_config.trainer)
     )
 

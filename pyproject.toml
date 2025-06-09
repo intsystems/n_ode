@@ -29,6 +29,11 @@ wandb = "^0.19.6"
 snakemake = "^9.5.1"
 
 
+[tool.poetry.group.remote.dependencies]
+ansible = "^11.6.0"
+ansible-dev-tools = "^25.5.2"
+jmespath = "^1.0.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

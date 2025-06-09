@@ -1,6 +1,7 @@
 ACTIVITIES = ["ups", "jog"]
 DATA_PATH = "../../data"
 SAVE_DIR_ROOT = "act_data"
+CHECKPOINTS_DIR = "checkpoints"
 
 # train:
 #     input:
@@ -14,9 +15,16 @@ SAVE_DIR_ROOT = "act_data"
 # ~ train all
 rule all:
     input:
-        expand(".checkpoints/{act}_checkpoint.ckpt", act=ACTIVITIES)
+        expand(f"{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt", act=ACTIVITIES)
 
-# rule classify:
+rule classify:
+    input:
+        config_classify_path = "config/classify.yaml",
+        config_wandb_path = "config/wandb.yaml"
+    shell:
+        """
+        python classify.py {input.config_classify_path} {input.config_wandb_path}
+        """
 
 rule train:
     input:
@@ -24,12 +32,13 @@ rule train:
         f"{SAVE_DIR_ROOT}/{{act}}/dataset.pkl",
         config_train_path = "config/{act}/train.yaml",
         # for wandb config saving
-        config_data_path = "config/{act}/data.yaml"
+        config_data_path = "config/{act}/data.yaml",
+        config_wandb_path = "config/wandb.yaml"
     output:
-        ".checkpoints/{act}_checkpoint.ckpt"
+        f"{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt"
     shell:
         f"""
-        python train_on_activity.py {{input.config_train_path}} {SAVE_DIR_ROOT}/{{wildcards.act}} {{input.config_data_path}}
+        python train_on_activity.py {{input.config_train_path}} {SAVE_DIR_ROOT}/{{wildcards.act}} {{input.config_data_path}} {{input.config_wandb_path}}
         """
 
 rule make_dataset:

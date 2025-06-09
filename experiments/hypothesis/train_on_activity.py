@@ -21,12 +21,13 @@ if __name__ == "__main__":
     parser.add_argument("train_config")
     parser.add_argument("save_dir", type=Path)
     parser.add_argument("data_config")
+    parser.add_argument("wandb_config")
     args = parser.parse_args()
 
     # load config files
     train_config: DictConfig = OmegaConf.load(args.train_config)
     data_config: DictConfig = OmegaConf.load(args.data_config)
-    # transform some fields to correct types
+    wandb_config: DictConfig = OmegaConf.load(args.wandb_config)
 
     # set rand seed
     torch.manual_seed(train_config.seed)
@@ -42,18 +43,17 @@ if __name__ == "__main__":
     )
 
     logger = WandbLogger(
-        project="node",
-        group="hypothesis",
         tags=["train", "unnormalized", "mlp_tanh"],
         config=dict(train_config) | dict(data_config),
         log_model="all",
         # it only attributes to wandb cloud
         checkpoint_name=f"{data_config.data.act}_checkpoint",
-        # mode="disabled" # debug
+        # mode="disabled", # debug
+        **dict(wandb_config)
     )
 
     checkpoint_callback = ModelCheckpoint(
-        dirpath=".checkpoints",
+        dirpath="checkpoints",
         filename=f"{data_config.data.act}_checkpoint",
         # results will be overwritten locally
         enable_version_counter=False,

@@ -27,62 +27,78 @@
   vars_files:
     - variables.yaml
   hosts: dynamic_vm
-  become: true
   tasks:
     - name: Check connection
       ping:
         data: "Hello"
-    - name: Configure git
+    - name: Configure git user
       community.general.git_config:
-        ...
+        name: user.name
+        value: "{{ git_name }}"
+        scope: global
+    - name: Configure git email
+      community.general.git_config:
+        name: user.email
+        value: "{{ git_email }}"
+        scope: global
     - name: Get latest repo from github
       git:
         repo: "https://github.com/intsystems/n_ode.git"
         dest: "n_ode"
         version: hypothesis
     - name: Copy raw dataset
+      become: true
       synchronize:
         src: "{{ item.src }}"
         dest: "{{ item.dest }}"
         recursive: yes
       loop:
         - src: ../data/A_DeviceMotion_data
-          dest: n_ode/data/A_DeviceMotion_data
+          dest: n_ode/data/
         - src: ../data/data_subjects_info.csv
           dest: n_ode/data/data_subjects_info.csv
     - name: Add deadsnakes PPA (Ubuntu)
+      become: true
       apt_repository:
         repo: ppa:deadsnakes/ppa
         state: present
     - name: Install Python 3.12 and pip tools
+      become: true
       package:
         name: 
           - python3.12
           - python3-pip
           - python3-venv
         state: present
+    - name: Install tmux
+      become: true
+      package:
+        name:
+          - tmux
+        state: present
     - name: Install poetry
-      command: curl -sSL https://install.python-poetry.org | python3 -
+      shell: "curl -sSL https://install.python-poetry.org | python3 -"
       register: ps
     - debug: var=ps.stdout_lines
     - name: Add poetry to system PATH in /etc/environment
       ansible.builtin.lineinfile:
-        path: /etc/environment
-        regexp: '^PATH='
-        line: 'PATH="{{ ansible_env.PATH }}:~/.local/bin"'
+        path: ~/.profile
+        line: 'PATH=$PATH:$HOME/.local/bin:'
         state: present
     - name: Config poetry
-      command: poetry config virtualenvs.in-project true
+      shell: 
+        cmd: source ~/.profile; poetry config virtualenvs.in-project true
+        executable: /bin/bash
     - name: Setup env via poetry
-      command:
-        cmd: poetry install
+      shell:
+        cmd: source ~/.profile; poetry install
         chdir: n_ode
-    - name: configure wandb
-      command: 
-        cmd: poetry run wandb login
-        chdir: n_ode
-      environment:
-        WANDB_API_KEY: "{{ wandb_api_key }}"
+        executable: /bin/bash
+    - name: Configure wandb
+      ansible.builtin.lineinfile:
+        path: ~/.profile
+        line: 'WANDB_API_KEY="{{ wandb_api_key }}"; export WANDB_API_KEY'
+        state: present
 # - name: Stop VM
 #   hosts: localhost
 #   gather_facts: false

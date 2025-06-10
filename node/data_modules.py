@@ -163,6 +163,7 @@ class ActivityDataModule(L.LightningDataModule):
         # load trajectories from disk
         with open(Path(self.dataset_kwargs["save_dir"]) / "dataset.pkl", "rb") as f:
             self.dataset: ActivityTrajDataset = pickle.load(f)
+        print("Num data points ~", len(self.dataset) * self.dataset.max_len)
         num_trajs = self.dataset.num_trajs
         # split FULL trajectories according to "test_ratio"
         split_index = max(

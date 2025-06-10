@@ -1,11 +1,11 @@
 vf:
   input_dim: 10
   hidden_dim: 50
-  num_layers: 2
+  num_layers: 6
 odeint:
   method: dopri5
-  atol: 1.0e-2
-  rtol: 1.0e-2
+  atol: 1.0e-3
+  rtol: 1.0e-3
 optim:
   lr: 5.0e-4
   weight_decay: 1.0e-6
@@ -15,7 +15,7 @@ data:
 trainer:
   accelerator: cpu
   max_epochs: 1
-  max_steps: 10
-  log_every_n_steps: 20
+  #max_steps: 10
+  log_every_n_steps: 5
 
 seed: 129

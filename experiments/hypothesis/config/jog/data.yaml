@@ -1,5 +1,5 @@
 data:
   act: jog
   dim: 10
-  max_len: 200
+  max_len: 100
   data_type: rotationRate

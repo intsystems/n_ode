@@ -53,9 +53,9 @@ if __name__ == "__main__":
     )
 
     earlystopping_callback = EarlyStopping(
-        monitor="Val/MSE",
+        monitor="Train/MSE",
         mode="min",
-        min_delta=1e-3,
+        min_delta=1.,
         patience=15
     )
     checkpoint_callback = ModelCheckpoint(
@@ -63,8 +63,9 @@ if __name__ == "__main__":
         filename=f"{data_config.data.act}_checkpoint",
         # results will be overwritten locally
         enable_version_counter=False,
-        monitor="Val/MSE",
-        mode="min"
+        monitor="Train/MSE",
+        mode="min",
+        every_n_train_steps=50
     )
     trainer = L.Trainer(
         logger=logger,

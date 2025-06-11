@@ -33,7 +33,7 @@ def slice_traj_mat(traj_matrix: np.ndarray, traj_len: int) -> tuple[np.ndarray]:
         batches = np.empty((0, traj_len, traj_dim))
     # compose residual batches
     pad_len = traj_len - traj_residue_len
-    if pad_len > 0:
+    if traj_residue_len > 0:
         residue_batch = np.concat(
             [traj_matrix[num_slices * traj_len:], np.zeros((pad_len, traj_dim))]
         )
@@ -41,7 +41,9 @@ def slice_traj_mat(traj_matrix: np.ndarray, traj_len: int) -> tuple[np.ndarray]:
         batches = np.concat([batches, residue_batch])
 
     # compute batches durations
-    durations = [traj_len for _ in range(num_slices)] + [traj_residue_len]
+    durations = [traj_len for _ in range(num_slices)]
+    if traj_residue_len > 0:
+        durations += [traj_residue_len]
     durations = np.array(durations)
 
     return batches, durations

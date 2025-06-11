@@ -80,7 +80,8 @@ class ActivityTrajDataset(Dataset):
                     [self.data_type]
                 ].values
 
-                cur_data = takens_traj(series, self.dim, self.max_len)
+                cur_data: tuple[np.ndarray] = takens_traj(series, self.dim, self.max_len)
+
                 cur_num_traj = cur_data[0].shape[0]
                 cur_data = list(cur_data) + [[subj_id] * cur_num_traj] + [[traj_num] * cur_num_traj]
 

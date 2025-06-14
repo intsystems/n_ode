@@ -20,6 +20,56 @@ from .traj_build import takens_traj
 import warnings
 
 
+def build_sliced_takens_trajs(
+    act: str,
+    dim: int,
+    max_len: int,
+    data_dir: Path,
+    data_type: str = "rotationRate"
+) -> list[dict[str, torch.Tensor]]:
+    """
+    Returns:
+        list[dict[str, torch.Tensor]]: sliced trajectories and their metainfo ("traj", "dur", "subj_id", "traj_num")
+    """
+    # load config file for data
+    data_params = OmegaConf.load(data_dir / "dataset_params.yaml")
+
+    # get labeled magnitudes of chosen signal
+    series_df = creat_time_series(
+        str(data_dir),
+        set_data_types([data_type]),
+        [act],
+        [data_params.activity_codes[act]]
+    )
+
+    data = []
+    # initial trajectory number for slices
+    traj_num = 0
+    for act_code in data_params.activity_codes[act]:
+        for subj_id in range(data_params.num_participants):
+            print(f"Activity: {act}; Act_code: {act_code}; Participant: {subj_id}")
+
+            # get time series for current participant and activity code
+            series = series_df.loc[
+                (series_df["id"] == subj_id) & (
+                    series_df["trial"] == act_code),
+                [data_type]
+            ].values
+
+            cur_data = takens_traj(series, dim, max_len)
+            cur_num_traj = cur_data[0].shape[0]
+            cur_data = list(cur_data) + [torch.tensor([subj_id] * cur_num_traj)] + [torch.tensor([traj_num] * cur_num_traj)]
+
+            names = ["traj", "dur", "subj_id", "traj_num"]
+            data.append({
+                name: v for (name, v) in zip(names, cur_data)
+            })
+
+            traj_num += 1
+
+    return data
+
+
 class ActivityTrajDataset(Dataset):
     """ Build phase trajectories for given activity.
         Building is deterministic.

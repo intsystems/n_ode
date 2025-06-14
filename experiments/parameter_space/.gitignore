@@ -1,2 +1,6 @@
-models
+# local log files
+node
 wandb
+artifacts
+checkpoints
+act_data

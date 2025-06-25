@@ -1,4 +1,5 @@
-ACTIVITIES = ["ups", "jog"]
+#ACTIVITIES = ["ups", "jog"]
+ACTIVITIES = ["jog"]
 RAW_DATA_DIR = "../../data"
 DATASET_DIR_ROOT = "act_data"
 CHECKPOINTS_DIR = "checkpoints"
@@ -6,7 +7,11 @@ CHECKPOINTS_DIR = "checkpoints"
 # ~ train all
 rule all:
     input:
-        expand(f"{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt", act=ACTIVITIES)
+        expand(f"{CHECKPOINTS_DIR}/{{act}}", act=ACTIVITIES)
+
+rule all_data:
+    input:
+        expand(f"{DATASET_DIR_ROOT}/{{act}}", act=ACTIVITIES)
 
 # rule classify_kNN:
 # rule classify_bayes:
@@ -17,13 +22,16 @@ rule train:
         "train_on_activity.py",
         dataset_dir = directory(f"{DATASET_DIR_ROOT}/{{act}}"),
         # for wandb config saving
+        config_train_path = "config/{act}/train.yaml",
         config_data_path = "config/{act}/data.yaml",
         config_wandb_path = "config/wandb.yaml"
+    params:
+        num_workers = 4
     output:
-        f"{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt"
-    shell:
-        f"""
-        python train_on_activity.py {{input.config_train_path}} {SAVE_DIR_ROOT}/{{wildcards.act}} {{input.config_data_path}} {{input.config_wandb_path}}
+        directory(f"{CHECKPOINTS_DIR}/{{act}}")
+    shell: """
+        python train_on_activity.py {input.dataset_dir} {input.config_train_path} \
+        {input.config_data_path} {input.config_wandb_path} {params.num_workers}
         """
 
 rule make_dataset:

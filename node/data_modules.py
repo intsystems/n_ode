@@ -57,6 +57,10 @@ def build_sliced_takens_trajs(
             ].values
 
             cur_data = takens_traj(series, dim, max_len)
+            cur_data = (
+                torch.tensor(cur_data[0], dtype=torch.float32),
+                torch.tensor(cur_data[1], dtype=torch.int)
+            )
             cur_num_traj = cur_data[0].shape[0]
             cur_data = list(cur_data) + [torch.tensor([subj_id] * cur_num_traj)] + [torch.tensor([traj_num] * cur_num_traj)]
 

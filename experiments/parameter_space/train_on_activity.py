@@ -47,6 +47,7 @@ def process_subjects(
     else:
         logger = None
         console = None
+        # disable Trainer logs
         f = open(os.devnull, 'w')
         sys.stdout = f
         sys.stderr = f

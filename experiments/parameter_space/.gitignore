@@ -4,3 +4,4 @@ wandb
 artifacts
 checkpoints
 act_data
+lightning_logs

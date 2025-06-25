@@ -21,7 +21,8 @@ class LitNodeSingleTraj(LitNode):
         self.val_traj_num = val_traj_num
 
     def on_train_start(self):
-        self.logger.log_text(f"traj_{self.traj_num}/Val_traj", columns=["val_traj_num"], data=[[self.val_traj_num]])
+        if hasattr(self.logger, "log_text"):
+            self.logger.log_text(f"traj_{self.traj_num}/Val_traj", columns=["val_traj_num"], data=[[self.val_traj_num]])
 
     def validation_step(self, *args, **kwargs):
         return self.training_step(*args, **kwargs)

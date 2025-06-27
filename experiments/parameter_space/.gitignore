@@ -5,3 +5,5 @@ artifacts
 checkpoints
 act_data
 lightning_logs
+classify/
+!config/**

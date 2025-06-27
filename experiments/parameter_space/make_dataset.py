@@ -12,7 +12,10 @@ from node.data_modules import build_sliced_takens_trajs
 
 if __name__ == "__main__":
     # load config file
-    data_config: DictConfig = OmegaConf.load(snakemake.input["config_path"])
+    data_config: DictConfig = OmegaConf.merge(
+        OmegaConf.load(snakemake.input["config_path"]),
+        OmegaConf.load(snakemake.input["shared_config_path"])
+    )
 
     # build trajectories
     sliced_trajs = build_sliced_takens_trajs(

@@ -1,4 +1,5 @@
 data:
-  act: jog
+  act: ups
+  dim: 10
   max_len: 200
   data_type: rotationRate

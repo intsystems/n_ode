@@ -1,4 +1,4 @@
-""" Example script to launch models training.
+""" Script to launch models training.
     Editable.
 """
 import sys
@@ -17,7 +17,7 @@ import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
-from node.field_model import VectorFieldLinear
+from components.field_model import MyVectorField
 from components.field_module import LitNodeSingleTraj
 
 
@@ -27,8 +27,14 @@ def process_subjects(
     subj_list: list[int]
 ):
     # load config files
-    train_config: DictConfig = OmegaConf.load(args.config_train_path)
-    data_config: DictConfig = OmegaConf.load(args.config_data_path)
+    train_config: DictConfig = OmegaConf.merge(
+        OmegaConf.load(args.config_train_path),
+        OmegaConf.load(args.config_shared_train_path)
+    )
+    data_config: DictConfig = OmegaConf.merge(
+        OmegaConf.load(args.config_data_path),
+        OmegaConf.load(args.config_shared_data_path)
+    )
     wandb_config: DictConfig = OmegaConf.load(args.config_wandb_path)
 
     # set rand seed
@@ -76,7 +82,7 @@ def process_subjects(
             if console is not None:
                 console.log(f"Training on trajectory {train_traj_num}")
 
-            vf = VectorFieldLinear(**dict(train_config.vf))
+            vf = MyVectorField(**dict(train_config.vf))
             lit_node = LitNodeSingleTraj(
                 vf,
                 dict(train_config.optim),
@@ -127,13 +133,15 @@ def devide_subj_list(subj_list: list, num_workers: int):
 
 
 if __name__ == "__main__":
-    argp = argparse.ArgumentParser()
-    argp.add_argument("dataset_dir", type=Path)
-    argp.add_argument("config_train_path", type=Path)
-    argp.add_argument("config_data_path", type=Path)
-    argp.add_argument("config_wandb_path", type=Path)
-    argp.add_argument("num_workers", type=int)
-    args = argp.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dataset_dir", type=Path)
+    parser.add_argument("config_train_path", type=Path)
+    parser.add_argument("config_shared_train_path", type=Path)
+    parser.add_argument("config_data_path", type=Path)
+    parser.add_argument("config_shared_data_path", type=Path)
+    parser.add_argument("config_wandb_path", type=Path)
+    parser.add_argument("num_workers", type=int)
+    args = parser.parse_args()
 
     mp.set_start_method("spawn")
 

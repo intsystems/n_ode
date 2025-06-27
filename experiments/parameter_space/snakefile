@@ -1,11 +1,16 @@
-#ACTIVITIES = ["ups", "jog"]
-ACTIVITIES = ["jog"]
+ACTIVITIES = ["ups", "jog"]
+#ACTIVITIES = ["jog"]
 RAW_DATA_DIR = "../../data"
 DATASET_DIR_ROOT = "act_data"
 CHECKPOINTS_DIR = "checkpoints"
+CONFIG_DIR = "config"
 
-# ~ train all
 rule all:
+    input:
+        "classify/kNN.csv",
+        "classify/gauss.csv"
+
+rule train_all:
     input:
         expand(f"{CHECKPOINTS_DIR}/{{act}}", act=ACTIVITIES)
 
@@ -13,31 +18,63 @@ rule all_data:
     input:
         expand(f"{DATASET_DIR_ROOT}/{{act}}", act=ACTIVITIES)
 
-# rule classify_kNN:
-# rule classify_bayes:
-# ...
+rule classify_kNN:
+    input:
+        "classify_kNN.py",
+        expand(f"{CHECKPOINTS_DIR}/{{act}}", act=ACTIVITIES),
+        config_split_path = f"{CONFIG_DIR}/classify/data_split.yaml",
+        config_kNN_path = f"{CONFIG_DIR}/classify/kNN.yaml",
+        config_shared_train_path = f"{CONFIG_DIR}/train.yaml",
+    params:
+        num_workers = 4
+    output:
+        "classify/kNN.csv"
+    shell: f"""
+        python classify_kNN.py {CHECKPOINTS_DIR} {{input.config_split_path}} \
+        {{input.config_kNN_path}} {{input.config_shared_train_path}} \
+        --num-workers {{params.num_workers}}
+    """
+
+rule classify_gauss:
+    input:
+        "classify_gauss.py",
+        expand(f"{CHECKPOINTS_DIR}/{{act}}", act=ACTIVITIES),
+        config_split_path = f"{CONFIG_DIR}/classify/data_split.yaml",
+        config_gauss_path = f"{CONFIG_DIR}/classify/gauss.yaml",
+        config_shared_train_path = f"{CONFIG_DIR}/train.yaml",
+    output:
+        "classify/gauss.csv"
+    shell: f"""
+        python classify_gauss.py {CHECKPOINTS_DIR} {{input.config_split_path}} \
+        {{input.config_gauss_path}} {{input.config_shared_train_path}}
+    """
 
 rule train:
     input:
         "train_on_activity.py",
         dataset_dir = directory(f"{DATASET_DIR_ROOT}/{{act}}"),
+        config_train_path = f"{CONFIG_DIR}/{{act}}/train.yaml",
+        config_shared_train_path = f"{CONFIG_DIR}/train.yaml",
         # for wandb config saving
-        config_train_path = "config/{act}/train.yaml",
-        config_data_path = "config/{act}/data.yaml",
-        config_wandb_path = "config/wandb.yaml"
+        config_data_path = f"{CONFIG_DIR}/{{act}}/data.yaml",
+        config_shared_data_path = f"{CONFIG_DIR}/data.yaml",
+        config_wandb_path = f"{CONFIG_DIR}/wandb.yaml"
     params:
         num_workers = 4
     output:
         directory(f"{CHECKPOINTS_DIR}/{{act}}")
     shell: """
         python train_on_activity.py {input.dataset_dir} {input.config_train_path} \
-        {input.config_data_path} {input.config_wandb_path} {params.num_workers}
+        {input.config_shared_train_path} {input.config_data_path} \
+        {input.config_shared_data_path} {input.config_wandb_path} \
+        {params.num_workers}
         """
 
 rule make_dataset:
     input:
         "make_dataset.py",
-        config_path = "config/{act}/data.yaml"
+        config_path = f"{CONFIG_DIR}/{{act}}/data.yaml",
+        shared_config_path = f"{CONFIG_DIR}/data.yaml"
     output:
         directory(f"{DATASET_DIR_ROOT}/{{act}}")
     params:

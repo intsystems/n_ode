@@ -1,32 +1,21 @@
-""" Script to launch trajectories classification with gaussian bayes.
+""" Script to launch trajectories classification with kNN.
     Editable.
 """
 import argparse
-import re
 from pipe import select
 from pathlib import Path
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import OmegaConf
 from rich.console import Console
 
 import numpy as np
 import pandas as pd
 
 import xgboost as xgb
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 
 import wandb
 
-import torch
-from torch.utils.data import TensorDataset, DataLoader
-
-import lightning as L
-from lightning.pytorch.loggers import WandbLogger
-from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
-
-from node.field_model import VectorFieldLinear
-from components.field_module import LitNodeSingleTraj
-from components.feature import make_feature_matrix
+from components.field_model import MyVectorField
+from components.feature import get_acts_feat_splitted
 
 
 console = Console()
@@ -35,58 +24,66 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("checkpoints_dir", type=Path)
     parser.add_argument("split_config_path", type=Path)
-    parser.add_argument("gauss_config_path", type=Path)
+    parser.add_argument("boost_config_path", type=Path)
+    parser.add_argument(
+        "shared_train_config_path", type=Path, 
+        help="Needed to reconstuct vf and extract params"
+    )
+    parser.add_argument(
+        "--num-workers", type=int, default=1, required=False,
+        help="parallelism for xgboost"
+    )
     args = parser.parse_args()
 
-    gauss_config = OmegaConf.load(args.gauss_config_path)
+    boost_config = OmegaConf.load(args.boost_config_path)
     split_config = OmegaConf.load(args.split_config_path)
+    train_config = OmegaConf.load(args.shared_train_config_path)
 
-    acts_ckpt_dir: dict[str, Path] = {
-        ckpt_dir.name: ckpt_dir
-        for ckpt_dir in args.checkpoints_dir.glob("*")
-    }
-    act_to_indx = {act: i for i, act in enumerate(acts_ckpt_dir)}
-    indx_to_act = {i: act for i, act in enumerate(acts_ckpt_dir)}
-
-    acts_feat_matrix = {
-        act: make_feature_matrix(act_dir).numpy()
-        for act, act_dir in acts_ckpt_dir
-    }
-    acts_labels = {
-        act: np.full(act_feat_matrix.shape[0], act_to_indx[act])
-        for act, act_feat_matrix in acts_feat_matrix
-    }
-    acts_train_test = {
-        act: train_test_split(acts_feat_matrix[act], acts_labels[act], **dict(split_config))
-        for act in act_to_indx
-    }
+    acts_train_test = get_acts_feat_splitted(
+        args.checkpoints_dir,
+        MyVectorField(**dict(train_config.vf)),
+        **dict(split_config)
+    )
+    # mapping act_name -> act_indx
+    acts_to_indx = dict(zip(acts_train_test.keys(), range(len(acts_train_test))))
+    # mapping act_indx -> act_name
+    indx_to_act = dict(enumerate(acts_train_test.keys()))
 
     # do data transformations
     pass
 
-    classifiers = {
-        act: GaussianMixture(**dict(gauss_config))
-        for act in act_to_indx
-    }
-    for act, classifier in classifiers.items():
-        classifier.fit(*acts_train_test[act][:2])
-    
-    # assume each class has equal prior prob
-    result = []
-    for act in act_to_indx:
-        cur_X_test = acts_train_test[act][3]
-        acts_probs = {
-            pred_act: classifier.predict_proba(cur_X_test).dot(classifier.weights_)
-            for pred_act, classifier in classifiers.items()
-        }
-        acts_probs = pd.DataFrame(acts_probs)
-        preds = acts_probs.idxmax(axis=1)
-        result.append(pd.DataFrame({
-            "pred": preds,
-            "true": [act] * preds.size
-        }))
-    result = pd.concat(result)
-    result.to_csv("classify/gauss.csv", index=False)
+    X_train = np.concat(list(
+        acts_train_test.values() | select(lambda x: x["train"])
+    ))
+    X_test = np.concat(list(
+        acts_train_test.values() | select(lambda x: x["val"])
+    ))
+    y_train = np.concat(list(
+        iter(acts_train_test.items()) |
+        select(lambda x: np.full(x[1]["train"].shape[0], acts_to_indx[x[0]]))
+    ))
+    y_test = np.concat(list(
+        iter(acts_train_test.items()) |
+        select(lambda x: np.full(x[1]["val"].shape[0], acts_to_indx[x[0]]))
+    ))
+
+    classifier = xgb.XGBClassifier(
+        **dict(boost_config), n_jobs=args.num_workers
+    )
+    classifier.fit(X_train, y_train, eval_set=[(X_test, y_test)])
+
+    y_pred = pd.Series(classifier.predict(X_test)).map(lambda v: indx_to_act[v])
+    y_true = []
+    for act in acts_to_indx:
+        y_true.append(pd.Series(
+            [act] * acts_train_test[act]["val"].shape[0]
+        ))
+    y_true = pd.concat(y_true, ignore_index=True)
+    result = pd.DataFrame({
+        "pred": y_pred,
+        "true": y_true
+    })
+    result.to_csv("classify/boost.csv", index=False)
 
     accuracy = (result["pred"] == result["true"]).mean()
     console.print("Accuracy = ", accuracy)

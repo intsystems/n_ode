@@ -35,6 +35,23 @@ rule classify_kNN:
         --num-workers {{params.num_workers}}
     """
 
+rule classify_boost:
+    input:
+        "classify_xgboost.py",
+        expand(f"{CHECKPOINTS_DIR}/{{act}}", act=ACTIVITIES),
+        config_split_path = f"{CONFIG_DIR}/classify/data_split.yaml",
+        config_boost_path = f"{CONFIG_DIR}/classify/boost.yaml",
+        config_shared_train_path = f"{CONFIG_DIR}/train.yaml",
+    params:
+        num_workers = 4
+    output:
+        "classify/boost.csv"
+    shell: f"""
+        python classify_xgboost.py {CHECKPOINTS_DIR} {{input.config_split_path}} \
+        {{input.config_boost_path}} {{input.config_shared_train_path}} \
+        --num-workers {{params.num_workers}}
+    """
+
 rule classify_gauss:
     input:
         "classify_gauss.py",

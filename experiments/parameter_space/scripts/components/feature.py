@@ -31,7 +31,7 @@ def get_acts_feat_splitted(
     vf: nn.Module,
     test_size: float,
     seed: int
-) -> dict[str, tuple[np.ndarray]]:
+) -> dict[str, dict[np.ndarray]]:
     act_data_splitted = {}
     for act_checkpoint_dir in checkpoint_dir.glob("*"):
         act = act_checkpoint_dir.name

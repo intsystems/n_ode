@@ -29,6 +29,7 @@ wandb = "^0.19.6"
 snakemake = "^9.5.1"
 rich = "^14.0.0"
 xgboost = "^3.0.2"
+plotly = "^6.2.0"
 
 
 [tool.poetry.group.remote.dependencies]

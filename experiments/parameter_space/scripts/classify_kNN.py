@@ -2,6 +2,7 @@
     Editable.
 """
 import argparse
+import pickle
 from pipe import select
 from pathlib import Path
 from omegaconf import OmegaConf
@@ -23,28 +24,16 @@ console = Console()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("checkpoints_dir", type=Path)
-    parser.add_argument("split_config_path", type=Path)
-    parser.add_argument("knn_config_path", type=Path)
-    parser.add_argument(
-        "shared_train_config_path", type=Path, 
-        help="Needed to reconstuct vf and extract params"
-    )
-    parser.add_argument(
-        "--num-workers", type=int, default=1, required=False,
-        help="parallelism for neigbours search"
-    )
+    parser.add_argument("act_feat_matr_path", type=Path)
+    parser.add_argument("kNN_config_path", type=Path)
+    parser.add_argument("model_save_dir", type=Path)
+    parser.add_argument("classify_save_dir", type=Path)
     args = parser.parse_args()
 
-    knn_config = OmegaConf.load(args.knn_config_path)
-    split_config = OmegaConf.load(args.split_config_path)
-    train_config = OmegaConf.load(args.shared_train_config_path)
+    knn_config = OmegaConf.load(args.kNN_config_path)
 
-    acts_train_test = get_acts_feat_splitted(
-        args.checkpoints_dir,
-        MyVectorField(**dict(train_config.vf)),
-        **dict(split_config)
-    )
+    with open(args.act_feat_matr_path, "rb") as f:
+        acts_train_test = pickle.load(f)
     # mapping act_name -> act_indx
     acts_to_indx = dict(zip(acts_train_test.keys(), range(len(acts_train_test))))
     # mapping act_indx -> act_name
@@ -64,8 +53,11 @@ if __name__ == "__main__":
         select(lambda x: np.full(x[1]["train"].shape[0], acts_to_indx[x[0]]))
     ))
 
-    classifier = KNeighborsClassifier(**dict(knn_config), n_jobs=args.num_workers)
-    classifier.fit(X_train, y_train)
+    classifier = KNeighborsClassifier(**dict(knn_config))
+    with console.status("Training model..."):
+        classifier.fit(X_train, y_train)
+    with open(args.model_save_dir / "kNN.pkl", "wb") as f:
+        pickle.dump(classifier, f)
 
     y_pred = pd.Series(classifier.predict(X_test)).map(lambda v: indx_to_act[v])
     y_true = []
@@ -78,7 +70,5 @@ if __name__ == "__main__":
         "pred": y_pred,
         "true": y_true
     })
-    result.to_csv("classify/kNN.csv", index=False)
-
-    accuracy = (result["pred"] == result["true"]).mean()
-    console.print("Accuracy = ", accuracy)
+    save_dir = Path(args.classify_save_dir)
+    result.to_csv(save_dir / "kNN.csv", index=False)

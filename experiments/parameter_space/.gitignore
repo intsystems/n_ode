@@ -1,9 +1,4 @@
 # local log files
-node
 wandb
-artifacts
-checkpoints
-act_data
+tmp
 lightning_logs
-classify/
-!config/**

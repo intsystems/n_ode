@@ -92,7 +92,7 @@ def process_subjects(
             )
 
             checkpoint_callback = ModelCheckpoint(
-                dirpath=f"checkpoints/{data_config.data.act}",
+                dirpath=f"tmp/checkpoints/{data_config.data.act}",
                 filename=f"traj_{train_traj_num}",
                 # results will be overwritten locally
                 enable_version_counter=False,

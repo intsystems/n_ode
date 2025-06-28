@@ -1,7 +1,8 @@
-""" Script to launch trajectories classification with gaussian bayes.
+""" Script to launch classification with gaussian bayes.
     Editable.
 """
 import argparse
+import pickle
 from pathlib import Path
 from omegaconf import OmegaConf
 from rich.console import Console
@@ -12,32 +13,21 @@ from sklearn.mixture import GaussianMixture
 
 import wandb
 
-from components.field_model import MyVectorField
-from components.feature import get_acts_feat_splitted
-
 
 console = Console()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("checkpoints_dir", type=Path)
-    parser.add_argument("split_config_path", type=Path)
+    parser.add_argument("act_feat_matr_path", type=Path)
     parser.add_argument("gauss_config_path", type=Path)
-    parser.add_argument(
-        "shared_train_config_path", type=Path, 
-        help="Needed to reconstuct vf and extract params"
-    )
+    parser.add_argument("model_save_dir", type=Path)
+    parser.add_argument("classify_save_dir", type=Path)
     args = parser.parse_args()
 
     gauss_config = OmegaConf.load(args.gauss_config_path)
-    split_config = OmegaConf.load(args.split_config_path)
-    train_config = OmegaConf.load(args.shared_train_config_path)
 
-    acts_train_test = get_acts_feat_splitted(
-        args.checkpoints_dir,
-        MyVectorField(**dict(train_config.vf)),
-        **dict(split_config)
-    )
+    with open(args.act_feat_matr_path, "rb") as f:
+        acts_train_test = pickle.load(f)
     acts = list(acts_train_test.keys())
 
     # do data transformations
@@ -48,7 +38,10 @@ if __name__ == "__main__":
         for act in acts
     }
     for act, classifier in classifiers.items():
-        classifier.fit(acts_train_test[act]["train"])
+        with console.status(f"Training model for {act}..."):
+            classifier.fit(acts_train_test[act]["train"])
+    with open(args.model_save_dir / "gauss.pkl", "wb") as f:
+        pickle.dump(classifiers, f)
 
     # assume each class has equal prior prob
     # and classify
@@ -66,9 +59,5 @@ if __name__ == "__main__":
             "true": [act] * preds.size
         }))
     result = pd.concat(result)
-    save_dir = Path("classify")
-    save_dir.mkdir(exist_ok=True)
+    save_dir = Path(args.classify_save_dir)
     result.to_csv(save_dir / "gauss.csv", index=False)
-
-    accuracy = (result["pred"] == result["true"]).mean()
-    console.print("Accuracy = ", accuracy)

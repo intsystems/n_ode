@@ -27,7 +27,7 @@ if __name__ == "__main__":
         subj_id = traj_dict["subj_id"][0].item()
         traj_num = traj_dict["traj_num"][0].item()
 
-        save_dir = Path(snakemake.params.DATASET_DIR_ROOT) / \
+        save_dir = Path("tmp/" + snakemake.params.DATASET_DIR_ROOT) / \
             f"{data_config.data.act}/subj_{subj_id}/traj_{traj_num}"
         save_dir.mkdir(exist_ok=True, parents=True)
 

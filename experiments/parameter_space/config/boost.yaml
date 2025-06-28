@@ -5,3 +5,4 @@ subsample: 0.9
 reg_lambda: 1.
 gamma: 0.2
 early_stopping_rounds: 10
+n_jobs: 4

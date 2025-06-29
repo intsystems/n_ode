@@ -46,7 +46,7 @@ def process_subjects(
     # does not save models to wandb
     if proc_id == 0:
         logger = WandbLogger(
-            name=f"train-{data_config.data.act}" + generate_id(),
+            name=f"train-{data_config.data.act}-" + generate_id(),
             tags=["unnormalized", "vf_linear"],
             config=dict(train_config) | dict(data_config),
             # mode="disabled", # debug

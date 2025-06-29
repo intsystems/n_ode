@@ -13,11 +13,13 @@ from rich.console import Console
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
+from wandb.util import generate_id
+
 import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
-from components.field_model import MyVectorField
+from  components.field_model import MyVectorField
 from components.field_module import LitNodeSingleTraj
 
 
@@ -44,9 +46,10 @@ def process_subjects(
     # does not save models to wandb
     if proc_id == 0:
         logger = WandbLogger(
-            tags=["train", "unnormalized", "mlp_tanh"],
+            name=f"train-{data_config.data.act}" + generate_id(),
+            tags=["unnormalized", "vf_linear"],
             config=dict(train_config) | dict(data_config),
-            mode="disabled", # debug
+            # mode="disabled", # debug
             **dict(wandb_config)
         )
         console = Console()

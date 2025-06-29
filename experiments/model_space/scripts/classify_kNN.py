@@ -15,9 +15,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
 
 import wandb
-
-from components.field_model import MyVectorField
-from components.feature import get_acts_feat_splitted
+from wandb.util import generate_id
 
 
 console = Console()
@@ -26,12 +24,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("act_feat_matr_path", type=Path)
     parser.add_argument("kNN_config_path", type=Path)
+    parser.add_argument("config_wandb_path", type=Path)
     parser.add_argument("model_save_dir", type=Path)
     parser.add_argument("classify_save_dir", type=Path)
     args = parser.parse_args()
 
     knn_config = OmegaConf.load(args.kNN_config_path)
+    wandb_config = OmegaConf.load(args.config_wandb_path)
 
+    run = wandb.init(
+        name="classify-kNN-" + generate_id(),
+        **dict(wandb_config)
+    )
+
+    run.use_artifact("act_features:latest")
     with open(args.act_feat_matr_path, "rb") as f:
         acts_train_test = pickle.load(f)
     # mapping act_name -> act_indx
@@ -58,6 +64,11 @@ if __name__ == "__main__":
         classifier.fit(X_train, y_train)
     with open(args.model_save_dir / "kNN.pkl", "wb") as f:
         pickle.dump(classifier, f)
+    run.log_artifact(
+        args.model_save_dir / "kNN.pkl",
+        "classifier_kNN", 
+        type="model"
+    )
 
     y_pred = pd.Series(classifier.predict(X_test)).map(lambda v: indx_to_act[v])
     y_true = []
@@ -72,3 +83,8 @@ if __name__ == "__main__":
     })
     save_dir = Path(args.classify_save_dir)
     result.to_csv(save_dir / "kNN.csv", index=False)
+    run.log_artifact(
+        save_dir / "kNN.csv",
+        "cls_result_kNN",
+        type="dataset"
+    )

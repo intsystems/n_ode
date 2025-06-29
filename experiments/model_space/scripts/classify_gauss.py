@@ -12,6 +12,7 @@ import pandas as pd
 from sklearn.mixture import GaussianMixture
 
 import wandb
+from wandb.util import generate_id
 
 
 console = Console()
@@ -20,12 +21,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("act_feat_matr_path", type=Path)
     parser.add_argument("gauss_config_path", type=Path)
+    parser.add_argument("config_wandb_path", type=Path)
     parser.add_argument("model_save_dir", type=Path)
     parser.add_argument("classify_save_dir", type=Path)
     args = parser.parse_args()
 
     gauss_config = OmegaConf.load(args.gauss_config_path)
+    wandb_config = OmegaConf.load(args.config_wandb_path)
 
+    run = wandb.init(
+        name="classify-gauss-" + generate_id(),
+        **dict(wandb_config)
+    )
+
+    run.use_artifact("act_features:latest")
     with open(args.act_feat_matr_path, "rb") as f:
         acts_train_test = pickle.load(f)
     acts = list(acts_train_test.keys())
@@ -42,6 +51,11 @@ if __name__ == "__main__":
             classifier.fit(acts_train_test[act]["train"])
     with open(args.model_save_dir / "gauss.pkl", "wb") as f:
         pickle.dump(classifiers, f)
+    run.log_artifact(
+        args.model_save_dir / "gauss.pkl",
+        "classifier_gauss", 
+        type="model"
+    )
 
     # assume each class has equal prior prob
     # and classify
@@ -61,3 +75,8 @@ if __name__ == "__main__":
     result = pd.concat(result)
     save_dir = Path(args.classify_save_dir)
     result.to_csv(save_dir / "gauss.csv", index=False)
+    run.log_artifact(
+        save_dir / "gauss.csv",
+        "cls_result_gauss",
+        type="dataset"
+    )

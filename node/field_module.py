@@ -39,7 +39,7 @@ class LitNode(L.LightningModule):
         traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
-        pred = self.forward(z_0, num_steps=traj.shape[1])
+        pred = self(z_0, num_steps=traj.shape[1])
         mask = get_trajectory_mask(duration, traj)
         
         # compute mean l2-loss for trajectories
@@ -57,7 +57,7 @@ class LitNode(L.LightningModule):
         traj, duration, subj, traj_num = batch
         z_0 = traj[:, 0, :]
 
-        pred = self.forward(z_0, num_steps=traj.shape[1])
+        pred = self(z_0, num_steps=traj.shape[1])
         mask = get_trajectory_mask(duration, traj)
         
         # compute l2-loss

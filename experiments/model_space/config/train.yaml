@@ -1,0 +1,7 @@
+vf:
+  in_features: 10
+  out_features: 10
+odeint:
+  method: dopri5
+  atol: 1.0e-2
+  rtol: 1.0e-2

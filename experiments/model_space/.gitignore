@@ -1,0 +1,5 @@
+# local log files
+wandb
+tmp
+lightning_logs
+config/wandb.yaml

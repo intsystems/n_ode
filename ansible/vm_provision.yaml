@@ -45,7 +45,7 @@
       git:
         repo: "https://github.com/intsystems/n_ode.git"
         dest: "n_ode"
-        version: hypothesis
+        version: model_space
     - name: Copy raw dataset
       become: true
       synchronize:
@@ -76,6 +76,12 @@
         name:
           - tmux
         state: present
+    - name: Configure tmux
+      become: true
+      copy:
+        dest: "~/.tmux.conf"
+        content: |
+          set-option -g mouse on
     - name: Install poetry
       shell: "curl -sSL https://install.python-poetry.org | python3 -"
       register: ps

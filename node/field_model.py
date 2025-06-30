@@ -47,3 +47,6 @@ class VectorFieldLinear(nn.Linear):
         self.weight = nn.Parameter(
             torch.zeros_like(self.weight, device=self.weight.device)
         )
+    
+    def forward(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        return super().forward(x)

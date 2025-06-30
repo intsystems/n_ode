@@ -81,7 +81,7 @@
       copy:
         dest: "~/.tmux.conf"
         content: |
-          set -g mouse on
+          set-option -g mouse on
     - name: Install poetry
       shell: "curl -sSL https://install.python-poetry.org | python3 -"
       register: ps

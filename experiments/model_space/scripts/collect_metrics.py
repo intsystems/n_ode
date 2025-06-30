@@ -51,3 +51,5 @@ if __name__ == "__main__":
     fig = px.bar(recall_hists, x="act", y="recall", color="method", barmode="group")
     fig.write_html(args.results_dir / "recall_hist.html")
     run.log({"recall_hists": wandb.Plotly(fig)})
+
+    run.alert("Model space experiment", "Finished")

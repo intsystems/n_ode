@@ -49,6 +49,7 @@ def process_subjects(
             name=f"train-{data_config.data.act}-" + generate_id(),
             tags=["unnormalized", "vf_linear"],
             config=dict(train_config) | dict(data_config),
+            prefix=f"{data_config.data.act}/",
             # mode="disabled", # debug
             **dict(wandb_config)
         )

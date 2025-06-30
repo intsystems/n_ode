@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     run = wandb.init(
         name="classify-gauss-" + generate_id(),
-        **dict(wandb_config)
+        **dict(wandb_config),
     )
 
     run.use_artifact("act_features:latest")
@@ -62,12 +62,11 @@ if __name__ == "__main__":
     result = []
     for act in acts:
         acts_probs = {
-            pred_act: classifier.predict_proba(acts_train_test[act]["val"])\
-                                .dot(classifier.weights_)
+            pred_act: classifier.score_samples(acts_train_test[act]["val"])
             for pred_act, classifier in classifiers.items()
         }
         acts_probs = pd.DataFrame(acts_probs)
-        preds = acts_probs.idxmax(axis=1)
+        preds = acts_probs.idxmin(axis=1)
         result.append(pd.DataFrame({
             "pred": preds,
             "true": [act] * preds.size

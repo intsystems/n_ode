@@ -9,7 +9,7 @@ if __name__ == "__main__":
     wandb_config = {
         "project": "node",
         "group": "hypothesis-" + wandb.util.generate_id(length=4),
-        "mode": "disabled"
+        # "mode": "disabled"
     }
 
     with open(snakemake.output[0], "w") as f:

@@ -1,55 +1,88 @@
 ACTIVITIES = ["ups", "jog"]
-DATA_PATH = "../../data"
-SAVE_DIR_ROOT = "act_data"
+RAW_DATA_DIR = "../../data"
+ACT_DATA_DIR = "act_data"
 CHECKPOINTS_DIR = "checkpoints"
+RESULT_DIR = "results"
+# dir to pipeline configs is "config"
 
-# train:
-#     input:
-#         "config/{act}/data.yaml",
-#         "config/{act}/train.yaml",
-#         "train_on_activity.py"
-#     output:
-#         "checkpoint"
-#     run:
+rule all_train:
+    input:
+        expand(f"tmp/{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt", act=ACTIVITIES)
 
-# ~ train all
+rule all_data:
+    input:
+        expand(f"tmp/{ACT_DATA_DIR}/{{act}}/train.pkl", act=ACTIVITIES)
+
 rule all:
     input:
-        expand(f"{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt", act=ACTIVITIES)
+        f"{RESULT_DIR}/agr_metrics.csv",
+        f"{RESULT_DIR}/recall_hist.html"
+
+rule make_results:
+    input:
+        "scripts/collect_metrics.py",
+        config_wandb_path = "config/wandb.yaml",
+        classify_table = "tmp/classify_table.csv"
+    output:
+        f"{RESULT_DIR}/agr_metrics.csv",
+        f"{RESULT_DIR}/recall_hist.html"
+    shell: f"""
+        python scripts/collect_metrics.py {{input.classify_table}} \
+        {RESULT_DIR} {{input.config_wandb_path}}
+    """
 
 rule classify:
     input:
-        config_classify_path = "config/classify.yaml",
+        "scripts/classify.py",
+        expand(f"tmp/{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt", act=ACTIVITIES),
+        expand(f"tmp/{ACT_DATA_DIR}/{{act}}/test.pkl", act=ACTIVITIES),
+        expand(f"config/{{act}}/train.yaml", act=ACTIVITIES),
         config_wandb_path = "config/wandb.yaml"
+    output:
+        "tmp/classify_table.csv"
     shell:
-        """
-        python classify.py {input.config_classify_path} {input.config_wandb_path}
+        f"""
+        python scripts/classify.py tmp/{ACT_DATA_DIR} tmp/{CHECKPOINTS_DIR} \
+        {{input.config_wandb_path}}
         """
 
 rule train:
     input:
-        "train_on_activity.py",
-        f"{SAVE_DIR_ROOT}/{{act}}/dataset.pkl",
-        config_train_path = "config/{act}/train.yaml",
-        # for wandb config saving
-        config_data_path = "config/{act}/data.yaml",
+        "scripts/train_on_activity.py",
+        train_dataset = f"tmp/{ACT_DATA_DIR}/{{act}}/train.pkl",
+        test_dataset = f"tmp/{ACT_DATA_DIR}/{{act}}/test.pkl",
+        config_train = "config/{act}/train.yaml",
+        config_data = "config/{act}/data.yaml",
         config_wandb_path = "config/wandb.yaml"
     output:
-        f"{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt"
+        f"tmp/{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt"
     shell:
         f"""
-        python train_on_activity.py {{input.config_train_path}} {SAVE_DIR_ROOT}/{{wildcards.act}} {{input.config_data_path}} {{input.config_wandb_path}}
+        python scripts/train_on_activity.py {{input.config_train}} \
+        {{input.config_data}} {{input.train_dataset}} {{input.test_dataset}} \
+        {{input.config_wandb_path}} tmp/{CHECKPOINTS_DIR}
         """
 
 rule make_dataset:
     input:
-        "make_dataset.py",
-        config_path = "config/{act}/data.yaml"
+        "scripts/make_dataset.py",
+        config_path = "config/{act}/data.yaml",
+        shared_config_path = "config/data.yaml",
+        config_wandb_path = "config/wandb.yaml"
     output:
-        f"{SAVE_DIR_ROOT}/{{act}}/dataset.pkl"
+        f"tmp/{ACT_DATA_DIR}/{{act}}/train.pkl",
+        f"tmp/{ACT_DATA_DIR}/{{act}}/test.pkl",
     shell:
-        # need to remove auto created dirs before
         f"""
-        rm -r {SAVE_DIR_ROOT}/{{wildcards.act}}; 
-        python make_dataset.py {{input.config_path}} {DATA_PATH} {SAVE_DIR_ROOT}/{{wildcards.act}}
+        python scripts/make_dataset.py {{input.config_path}} \
+        {{input.shared_config_path}} {{input.config_wandb_path}} {RAW_DATA_DIR} \
+        tmp/{ACT_DATA_DIR}/{{wildcards.act}}
         """
+
+rule configure_wandb:
+    input:
+        "scripts/wandb_config.py"
+    output:
+        "config/wandb.yaml"
+    script:
+        "scripts/wandb_config.py"

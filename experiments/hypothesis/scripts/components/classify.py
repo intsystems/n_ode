@@ -6,27 +6,31 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
+from rich.console import Console
+from rich.progress import track
+
 from node.data_modules import ActivityDataModule
 from node.field_module import get_trajectory_mask
 from .field_module import LitNodeHype, compute_lh
 
+console = Console()
 
 # launches models on each activity and stores liklyhood of each trajectory
 @torch.no_grad
 def build_lh_table(
-    datamodules: dict[str, ActivityDataModule],      # for validation data; activity -> datamodule
+    test_datasets: dict[str, ActivityDataModule],      # for validation data; activity -> datamodule
     models: dict[str, LitNodeHype]
 ) -> pd.DataFrame:
     act_lh = []
 
-    for test_act in datamodules.keys():
-        test_act_loader = DataLoader(datamodules[test_act].val_dataset, batch_size=1, shuffle=False, collate_fn=lambda x: x)
+    for test_act, test_dataset in test_datasets.items():
+        test_act_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
         # lh for each model for current activity data
         models_lh = {model_act: [] for model_act in models.keys()}
 
         cur_traj_num = -1
-        for traj, duration, subj, traj_num in test_act_loader:
+        for traj, duration, subj, traj_num in track(test_act_loader, f"Classifying {test_act}..."):
             # remove batch dim
             traj_num: int = traj_num.item()
             if cur_traj_num != traj_num:

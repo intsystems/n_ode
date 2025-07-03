@@ -19,7 +19,7 @@ import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
-from  components.field_model import MyVectorField
+from components.field_model import MyVectorField
 from components.field_module import LitNodeSingleTraj
 
 

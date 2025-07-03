@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 import pandas as pd
 import plotly.express as px
 
-from components.metrics import compute_agragate_metrics, make_recall_hist
+from node.metrics import compute_agragate_metrics, make_recall_hist
 
 import wandb
 from wandb.util import generate_id

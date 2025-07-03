@@ -104,6 +104,8 @@ rule make_dataset:
         "scripts/make_dataset.py"
 
 rule configure_wandb:
+    input:
+        "scripts/wandb_config.py"
     output:
         f"{CONFIG_DIR}/wandb.yaml"
     script:

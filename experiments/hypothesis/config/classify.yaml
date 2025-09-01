@@ -1,4 +1,0 @@
-# specify model from wandb
-# 1. all needed datasets must be available locally
-ups: ups_checkpoint:latest
-jog: jog_checkpoint:latest

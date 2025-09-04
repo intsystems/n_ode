@@ -7,7 +7,7 @@ from omegaconf import OmegaConf, DictConfig
 
 import torch
 
-from node.data_modules import build_sliced_takens_trajs
+from node.data_modules import build_act_trajs
 
 
 if __name__ == "__main__":
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     )
 
     # build trajectories
-    sliced_trajs = build_sliced_takens_trajs(
+    sliced_trajs = build_act_trajs(
         data_dir=Path(snakemake.params.RAW_DATA_DIR),
         **dict(data_config.data)
     )

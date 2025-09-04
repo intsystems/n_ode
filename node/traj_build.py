@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset, TensorDataset
 import scipy.linalg as linalg
 
-from .raw_data_loading import creat_time_series, set_data_types
+from .raw_data_loading import create_time_series, set_data_types
 
 
 def normalize_traj(traj: torch.Tensor) -> torch.Tensor:
@@ -96,7 +96,7 @@ def make_trajectories(config: dict, data_path: Path, traj_dir: Path = "trajector
 
     for activity, act_codes in data_params["activity_codes"].items():
         # get labeled magnitudes of chosen signal
-        series_df = creat_time_series(
+        series_df = create_time_series(
             str(data_path),
             set_data_types([config["data_type"]]),
             [activity],

@@ -1,4 +1,5 @@
 ACTIVITIES = ["ups", "jog"]
+PARTICIPANTS = [0, 1]
 RAW_DATA_DIR = "../../data"
 ACT_DATA_DIR = "act_data"
 CHECKPOINTS_DIR = "checkpoints"
@@ -11,7 +12,10 @@ rule all_train:
 
 rule all_data:
     input:
-        expand(f"tmp/{ACT_DATA_DIR}/{{act}}/train.pkl", act=ACTIVITIES)
+        expand(
+            f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{{act}}/train.pkl", 
+            act=ACTIVITIES, subj_id=PARTICIPANTS
+        )
 
 rule all:
     input:
@@ -68,21 +72,25 @@ rule make_dataset:
         "scripts/make_dataset.py",
         config_path = "config/{act}/data.yaml",
         shared_config_path = "config/data.yaml",
-        config_wandb_path = "config/wandb.yaml"
+        config_wandb_path = "config/subj_{subj_id}/wandb.yaml"
     output:
-        f"tmp/{ACT_DATA_DIR}/{{act}}/train.pkl",
-        f"tmp/{ACT_DATA_DIR}/{{act}}/test.pkl",
+        f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{{act}}/train.pkl",
+        f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{{act}}/test.pkl",
     shell:
         f"""
         python scripts/make_dataset.py {{input.config_path}} \
         {{input.shared_config_path}} {{input.config_wandb_path}} {RAW_DATA_DIR} \
-        tmp/{ACT_DATA_DIR}/{{wildcards.act}}
+        tmp/{ACT_DATA_DIR}/subj_{{wildcards.subj_id}}/{{wildcards.act}}
         """
+
+rule all_wandb_configs:
+    input:
+        expand("config/subj_{subj_id}/wandb.yaml", subj_id=PARTICIPANTS)
 
 rule configure_wandb:
     input:
         "scripts/wandb_config.py"
     output:
-        "config/wandb.yaml"
+        "config/subj_{subj_id}/wandb.yaml"
     script:
         "scripts/wandb_config.py"

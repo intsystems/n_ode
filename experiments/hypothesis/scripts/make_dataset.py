@@ -1,6 +1,7 @@
 """ Script to launch datasets building.
     Operates in snakemake ecosystem.
 """
+import re
 import argparse
 from pathlib import Path
 from omegaconf import OmegaConf, DictConfig
@@ -12,7 +13,7 @@ from torch.utils.data import random_split, TensorDataset
 import wandb
 from wandb.util import generate_id
 
-from node.data_modules import build_sliced_takens_trajs
+from node.data_modules import build_subj_act_trajs
 
 
 if __name__ == "__main__":
@@ -25,6 +26,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     wandb_config = OmegaConf.load(args.config_wandb_path)
+    subj_id = int(re.search(r"subj-(\d+)", wandb_config.group)[1])
+    # DEBUG
+    print(subj_id)
     # load config file
     data_config: DictConfig = OmegaConf.merge(
         OmegaConf.load(args.data_config_path),
@@ -40,7 +44,8 @@ if __name__ == "__main__":
     )
 
     # build trajectories
-    sliced_trajs_list = build_sliced_takens_trajs(
+    sliced_trajs_list = build_subj_act_trajs(
+        subj_id=subj_id,
         data_dir=args.raw_data_dir,
         **dict(data_config.data)
     )
@@ -70,12 +75,12 @@ if __name__ == "__main__":
     torch.save(train_dataset, args.output_dir / "train.pkl")
     run.log_artifact(
         args.output_dir / "train.pkl",
-        f"{data_config.data.act}_train",
+        f"subj_{subj_id}_{data_config.data.act}_train",
         type="dataset"
     )
     torch.save(test_dataset, args.output_dir / "test.pkl")
     run.log_artifact(
         args.output_dir / "test.pkl",
-        f"{data_config.data.act}_test",
+        f"subj_{subj_id}_{data_config.data.act}_test",
         type="dataset"
     )

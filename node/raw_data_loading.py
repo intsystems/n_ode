@@ -45,7 +45,7 @@ def set_data_types(data_types):
 
     return dt_list
 
-def creat_time_series(data_dir: str, dt_list, act_labels, trial_codes, mode="mag", labeled=True):
+def create_time_series(data_dir: str, dt_list, act_labels, trial_codes, mode="mag", labeled=True):
     """
     Args:
         dt_list: A list of columns that shows the type of data we want.

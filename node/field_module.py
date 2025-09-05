@@ -24,16 +24,18 @@ class LitNode(L.LightningModule):
     def __init__(
         self,
         vf: nn.Module,
+        loss_funcs: dict[str, Callable],
         optim_kwargs: dict,
         odeint_kwargs: dict
     ):
         super().__init__()
 
         self.vf = vf
+        self.loss_funcs = loss_funcs
         self.optim_kwargs = optim_kwargs
         self.odeint_kwargs = odeint_kwargs
 
-        self.save_hyperparameters(ignore=["vf"], logger=False)
+        self.save_hyperparameters(ignore=["vf", "loss_funcs"], logger=False)
 
     def training_step(self, batch, batch_idx):
         traj, duration, subj, traj_num = batch
@@ -42,44 +44,26 @@ class LitNode(L.LightningModule):
         pred = self(z_0, num_steps=traj.shape[1])
         mask = get_trajectory_mask(duration, traj)
         
-        # compute mean l2-loss for trajectories
-        l2_loss, _ = self._compute_abs_rel_metric(
-            F.mse_loss,
-            traj,
-            duration,
-            pred,
-            mask
-        )
+        optim_loss = None
+        # dicts are ordered by insertion order in Python 3.7+
+        for i, (loss_name, loss_f) in enumerate(self.loss_funcs.items()):
+            loss_abs, loss_rel = self._compute_abs_rel_metric(
+                loss_f,
+                traj,
+                duration,
+                pred,
+                mask
+            )
 
-        return l2_loss
-    
-    def on_train_batch_end(self, outputs, batch, batch_idx):
-        traj, duration, subj, traj_num = batch
-        z_0 = traj[:, 0, :]
+            if i == 0:
+                optim_loss = loss_abs
+                prog_bar = True
+            else:
+                prog_bar = False
+            self.log(f"Train/{loss_name}", loss_abs, prog_bar=prog_bar, on_step=True)
+            self.log(f"Train/rel{loss_name}", loss_rel, on_step=True)
 
-        pred = self(z_0, num_steps=traj.shape[1])
-        mask = get_trajectory_mask(duration, traj)
-        
-        # compute l2-loss
-        l2_loss, l2_loss_rel = self._compute_abs_rel_metric(
-            F.mse_loss,
-            traj,
-            duration,
-            pred,
-            mask
-        )
-        self.log("Train/MSE", l2_loss, prog_bar=True, on_step=True)
-        self.log("Train/relMSE", l2_loss_rel, on_step=True)
-        # compute l1-loss
-        l1_loss, l1_loss_rel = self._compute_abs_rel_metric(
-            F.l1_loss,
-            traj,
-            duration,
-            pred,
-            mask
-        )
-        self.log("Train/MAE", l1_loss, on_step=True)
-        self.log("Train/relMAE", l1_loss_rel, on_step=True)
+        return optim_loss
 
     def _compute_abs_rel_metric(
         self,
@@ -99,13 +83,14 @@ class LitNode(L.LightningModule):
         loss = loss.sum(dim=-1)
         # compute relative loss for traj. vectors
         # like ||resid|| / ||traj||
-        rel_loss = metric_f(
+        traj_norm = metric_f(
             traj,
             torch.zeros_like(traj).to(traj),
             reduction="none"
         )
-        rel_loss = rel_loss.sum(dim=-1) + 1e-6
-        rel_loss = loss / rel_loss
+        EPS = 1e-6
+        traj_norm = traj_norm.sum(dim=-1) + EPS
+        rel_loss = loss / traj_norm
 
         loss, rel_loss = list(
             [loss, rel_loss] |

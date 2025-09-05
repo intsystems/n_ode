@@ -27,8 +27,8 @@ def compute_lh(
 class LitNodeHype(LitNode):
     """ Complement base class with validation which computes liklyhood for full trajectories.
     """
-    def __init__(self, vf, optim_kwargs, odeint_kwargs):
-        super().__init__(vf, optim_kwargs, odeint_kwargs)
+    def __init__(self, vf, loss_funcs, optim_kwargs, odeint_kwargs):
+        super().__init__(vf, loss_funcs, optim_kwargs, odeint_kwargs)
 
         # counter and container for computing full trajectories liklyhood
         self._cur_traj_num: int = None
@@ -44,26 +44,17 @@ class LitNodeHype(LitNode):
         # save tensors to compute liklyhood for the whole traj
         self._cur_traj_info.append([traj_num, traj, duration, pred])
 
-        # compute l2-loss for epoch
-        l2_loss, l2_loss_rel = self._compute_abs_rel_metric(
-            F.mse_loss,
-            traj,
-            duration,
-            pred,
-            mask
-        )
-        self.log("Val/MSE", l2_loss, on_epoch=True)
-        self.log("Val/relMSE", l2_loss_rel, on_epoch=True)
-        # compute l1-loss for epoch
-        l1_loss, l1_loss_rel = self._compute_abs_rel_metric(
-            F.l1_loss,
-            traj,
-            duration,
-            pred,
-            mask
-        )
-        self.log("Val/MAE", l1_loss, on_epoch=True)
-        self.log("Val/relMAE", l1_loss_rel, on_epoch=True)
+        for loss_name, loss_f in self.loss_funcs.items():
+            loss_abs, loss_rel = self._compute_abs_rel_metric(
+                loss_f,
+                traj,
+                duration,
+                pred,
+                mask
+            )
+
+            self.log(f"Train/{loss_name}", loss_abs, on_step=True)
+            self.log(f"Train/rel{loss_name}", loss_rel, on_step=True)
 
     def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx = 0):
         traj, duration, subj, traj_num = batch
@@ -88,7 +79,12 @@ class LitNodeHype(LitNode):
             )
             full_mask = get_trajectory_mask(full_duration, full_traj)
 
-            lh = compute_lh(full_traj, full_pred, full_mask)
+            optim_loss = list(self.loss_funcs.values())[0]
+            lh = optim_loss(
+                full_traj,
+                full_pred * full_mask,
+                reduction="sum"
+            )
             self.log("Val/traj_liklyhood", lh, on_epoch=True)
 
             # save other trajectory part and num
@@ -104,7 +100,12 @@ class LitNodeHype(LitNode):
             select(lambda x: torch.concat(x))
         )
         full_mask = get_trajectory_mask(full_duration, full_traj)
-        lh = compute_lh(full_traj, full_pred, full_mask)
+        optim_loss = list(self.loss_funcs.values())[0]
+        lh = optim_loss(
+                full_traj,
+                full_pred * full_mask,
+                reduction="sum"
+            )
         self.log("Val/traj_liklyhood", lh, on_epoch=True)
 
         # clean up after validation epoch

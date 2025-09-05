@@ -27,8 +27,6 @@ if __name__ == "__main__":
 
     wandb_config = OmegaConf.load(args.config_wandb_path)
     subj_id = int(re.search(r"subj-(\d+)", wandb_config.group)[1])
-    # DEBUG
-    print(subj_id)
     # load config file
     data_config: DictConfig = OmegaConf.merge(
         OmegaConf.load(args.data_config_path),
@@ -40,6 +38,7 @@ if __name__ == "__main__":
     run = wandb.init(
         name=f"data-{data_config.data.act}-" + generate_id(),
         config=data_config,
+        tags=["normalized"],
         **dict(wandb_config)
     )
 
@@ -57,6 +56,11 @@ if __name__ == "__main__":
             sliced_trajs_list | select(lambda t: t[name])
         ))
     del sliced_trajs_list
+
+    # normalize trajectories
+    sliced_trajs["traj"] = \
+        (sliced_trajs["traj"] - sliced_trajs["traj"].mean(dim=(0, 1))) \
+            / sliced_trajs["traj"].std(dim=(0, 1))
 
     test_ratio = data_config.test_ratio
     train_indx, test_indx = random_split(

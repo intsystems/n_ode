@@ -2,10 +2,12 @@
     Editable.
 """
 import argparse
+import re
 from pathlib import Path
 from omegaconf import OmegaConf, DictConfig
 
 import torch
+import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 
 import lightning as L
@@ -33,20 +35,26 @@ if __name__ == "__main__":
     data_config: DictConfig = OmegaConf.load(args.data_config)
     wandb_config: DictConfig = OmegaConf.load(args.wandb_config)
 
+    subj_id = int(re.search(r"subj-(\d+)", wandb_config.group)[1])
+
     # set rand seed
     torch.manual_seed(train_config.seed)
 
     # choose vector field
     vf = MyVectorField(**dict(train_config.vf))
-    lit_node = LitNodeHype(vf, dict(train_config.optim), dict(train_config.odeint))
+    loss_funcs = {
+        "MAE": F.l1_loss,
+        "MSE": F.mse_loss
+    }
+    lit_node = LitNodeHype(vf, loss_funcs, dict(train_config.optim), dict(train_config.odeint))
 
     logger = WandbLogger(
         name=f"train-{data_config.data.act}-" + generate_id(),
-        tags=["unnormalized", "mlp_tanh"],
+        tags=["mlp_tanh", "mae"],
         config=dict(train_config),
         log_model="all",
         # it only attributes to wandb cloud
-        checkpoint_name=f"{data_config.data.act}_checkpoint",
+        checkpoint_name=f"subj_{subj_id}_{data_config.data.act}_checkpoint",
         # mode="disabled", # debug
         **dict(wandb_config)
     )
@@ -56,8 +64,8 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, train_config.batch_size, shuffle=True)
     test_dataset: TensorDataset = torch.load(args.test_dataset, weights_only=False)
     test_loader = DataLoader(test_dataset, train_config.batch_size, shuffle=False)
-    logger.use_artifact(f"{data_config.data.act}_train:latest")
-    logger.use_artifact(f"{data_config.data.act}_test:latest")
+    logger.use_artifact(f"subj_{subj_id}_{data_config.data.act}_train:latest")
+    logger.use_artifact(f"subj_{subj_id}_{data_config.data.act}_test:latest")
 
     earlystopping_callback = EarlyStopping(**dict(train_config.early_stop))
     checkpoint_callback = ModelCheckpoint(

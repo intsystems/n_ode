@@ -8,7 +8,10 @@ RESULT_DIR = "results"
 
 rule all_train:
     input:
-        expand(f"tmp/{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt", act=ACTIVITIES)
+        expand(
+            f"tmp/{CHECKPOINTS_DIR}/subj_{{subj_id}}/{{act}}_checkpoint.ckpt",
+            act=ACTIVITIES, subj_id=PARTICIPANTS
+        )
 
 rule all_data:
     input:
@@ -16,6 +19,10 @@ rule all_data:
             f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{{act}}/train.pkl", 
             act=ACTIVITIES, subj_id=PARTICIPANTS
         )
+
+rule all_wandb_configs:
+    input:
+        expand("config/subj_{subj_id}/wandb.yaml", subj_id=PARTICIPANTS)
 
 rule all:
     input:
@@ -53,18 +60,18 @@ rule classify:
 rule train:
     input:
         "scripts/train_on_activity.py",
-        train_dataset = f"tmp/{ACT_DATA_DIR}/{{act}}/train.pkl",
-        test_dataset = f"tmp/{ACT_DATA_DIR}/{{act}}/test.pkl",
+        train_dataset = f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{{act}}/train.pkl",
+        test_dataset = f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{{act}}/test.pkl",
         config_train = "config/{act}/train.yaml",
         config_data = "config/{act}/data.yaml",
-        config_wandb_path = "config/wandb.yaml"
+        config_wandb_path = "config/subj_{subj_id}/wandb.yaml"
     output:
-        f"tmp/{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt"
+        f"tmp/{CHECKPOINTS_DIR}/subj_{{subj_id}}/{{act}}_checkpoint.ckpt"
     shell:
         f"""
         python scripts/train_on_activity.py {{input.config_train}} \
         {{input.config_data}} {{input.train_dataset}} {{input.test_dataset}} \
-        {{input.config_wandb_path}} tmp/{CHECKPOINTS_DIR}
+        {{input.config_wandb_path}} tmp/{CHECKPOINTS_DIR}/subj_{{wildcards.subj_id}}
         """
 
 rule make_dataset:
@@ -82,10 +89,6 @@ rule make_dataset:
         {{input.shared_config_path}} {{input.config_wandb_path}} {RAW_DATA_DIR} \
         tmp/{ACT_DATA_DIR}/subj_{{wildcards.subj_id}}/{{wildcards.act}}
         """
-
-rule all_wandb_configs:
-    input:
-        expand("config/subj_{subj_id}/wandb.yaml", subj_id=PARTICIPANTS)
 
 rule configure_wandb:
     input:

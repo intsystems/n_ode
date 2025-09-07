@@ -18,7 +18,7 @@ console = Console()
 # launches models on each activity and stores liklyhood of each trajectory
 @torch.no_grad
 def build_lh_table(
-    test_datasets: dict[str, ActivityDataModule],      # for validation data; activity -> datamodule
+    test_datasets: dict[str, ActivityDataModule],
     models: dict[str, LitNodeHype]
 ) -> pd.DataFrame:
     act_lh = []
@@ -40,7 +40,9 @@ def build_lh_table(
                 z_0 = traj[:, 0, :]
                 pred = model(z_0, num_steps=traj.shape[1])
                 mask = get_trajectory_mask(duration, traj)
-                lh = compute_lh(traj, pred, mask)
+                lk_func = list(model.loss_funcs.values())[0]
+                # compute normed -1 * likelihood
+                lh = lk_func(traj, pred * mask)
                 models_lh[model_act][-1] += lh.item()
 
         models_lh = pd.DataFrame(models_lh)

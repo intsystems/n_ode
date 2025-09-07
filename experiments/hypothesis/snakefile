@@ -1,10 +1,17 @@
 ACTIVITIES = ["ups", "jog"]
-PARTICIPANTS = [0, 1]
+PARTICIPANTS = [0, 1, 2]
 RAW_DATA_DIR = "../../data"
 ACT_DATA_DIR = "act_data"
 CHECKPOINTS_DIR = "checkpoints"
 RESULT_DIR = "results"
 # dir to pipeline configs is "config"
+
+rule all_classify:
+    input:
+        expand(
+            "tmp/classify/subj_{subj_id}_classify_table.csv",
+            subj_id=PARTICIPANTS
+        )
 
 rule all_train:
     input:
@@ -27,34 +34,35 @@ rule all_wandb_configs:
 rule all:
     input:
         f"{RESULT_DIR}/agr_metrics.csv",
+        f"{RESULT_DIR}/agr_metrics.html",
         f"{RESULT_DIR}/recall_hist.html"
 
 rule make_results:
     input:
         "scripts/collect_metrics.py",
-        config_wandb_path = "config/wandb.yaml",
-        classify_table = "tmp/classify_table.csv"
+        classify_dir = directory("tmp/classify")
     output:
         f"{RESULT_DIR}/agr_metrics.csv",
+        f"{RESULT_DIR}/agr_metrics.html",
         f"{RESULT_DIR}/recall_hist.html"
     shell: f"""
-        python scripts/collect_metrics.py {{input.classify_table}} \
-        {RESULT_DIR} {{input.config_wandb_path}}
+        python scripts/collect_metrics.py {{input.classify_dir}} \
+        {RESULT_DIR}
     """
 
 rule classify:
     input:
         "scripts/classify.py",
-        expand(f"tmp/{CHECKPOINTS_DIR}/{{act}}_checkpoint.ckpt", act=ACTIVITIES),
-        expand(f"tmp/{ACT_DATA_DIR}/{{act}}/test.pkl", act=ACTIVITIES),
-        expand(f"config/{{act}}/train.yaml", act=ACTIVITIES),
-        config_wandb_path = "config/wandb.yaml"
+        [f"tmp/{CHECKPOINTS_DIR}/subj_{{subj_id}}/{act}_checkpoint.ckpt" for act in ACTIVITIES],
+        [f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{act}/test.pkl" for act in ACTIVITIES],
+        [f"config/{act}/train.yaml" for act in ACTIVITIES],
+        config_wandb_path = "config/subj_{subj_id}/wandb.yaml"
     output:
-        "tmp/classify_table.csv"
+        "tmp/classify/subj_{subj_id}_classify_table.csv"
     shell:
         f"""
-        python scripts/classify.py tmp/{ACT_DATA_DIR} tmp/{CHECKPOINTS_DIR} \
-        {{input.config_wandb_path}}
+        python scripts/classify.py tmp/{ACT_DATA_DIR}/subj_{{wildcards.subj_id}} \
+        tmp/{CHECKPOINTS_DIR}/subj_{{wildcards.subj_id}} {{input.config_wandb_path}} tmp/classify
         """
 
 rule train:

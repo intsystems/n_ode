@@ -1,7 +1,7 @@
 vf:
   input_dim: 10
-  hidden_dim: 30
-  num_layers: 5
+  hidden_dim: 50
+  num_layers: 2
 odeint:
   method: dopri5
   atol: 1.0e-3
@@ -9,20 +9,20 @@ odeint:
 optim:
   lr: 5.0e-4
   weight_decay: 1.0e-6
-batch_size: 4
+batch_size: 8
 trainer:
   accelerator: cpu
   devices: 1
-  max_epochs: 1
-  max_steps: 10
-  log_every_n_steps: 5
+  max_epochs: 20
+  # max_steps: 10
+  log_every_n_steps: 3
 early_stop:
-  monitor: Train/relMAE
+  monitor: Val/relMSE
   mode: min
   min_delta: 1.0e-1
   patience: 3
 model_checkpoint:
-  monitor: Train/relMAE
+  monitor: Train/relMSE
   mode: min
   every_n_train_steps: 6
 

@@ -1,6 +1,6 @@
 data:
   act: jog
-  max_len: 100
+  max_len: 20
   data_type: rotationRate
 
 seed: 42

@@ -43,19 +43,18 @@ if __name__ == "__main__":
     # choose vector field
     vf = MyVectorField(**dict(train_config.vf))
     loss_funcs = {
-        "MAE": F.l1_loss,
-        "MSE": F.mse_loss
+        "MSE": F.mse_loss,
+        "MAE": F.l1_loss
     }
     lit_node = LitNodeHype(vf, loss_funcs, dict(train_config.optim), dict(train_config.odeint))
 
     logger = WandbLogger(
         name=f"train-{data_config.data.act}-" + generate_id(),
-        tags=["mlp_tanh", "mae"],
+        tags=["mlp_tanh", "mse"],
         config=dict(train_config),
         log_model="all",
         # it only attributes to wandb cloud
         checkpoint_name=f"subj_{subj_id}_{data_config.data.act}_checkpoint",
-        # mode="disabled", # debug
         **dict(wandb_config)
     )
 

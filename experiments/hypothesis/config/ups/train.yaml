@@ -9,20 +9,20 @@ odeint:
 optim:
   lr: 5.0e-4
   weight_decay: 1.0e-6
-batch_size: 4
+batch_size: 8
 trainer:
   accelerator: cpu
-  devices: 3
+  devices: 1
   max_epochs: 20
   # max_steps: 10
   log_every_n_steps: 3
 early_stop:
-  monitor: Val/relMSE
+  monitor: Val/MSE
   mode: min
   min_delta: 1.0e-1
   patience: 3
 model_checkpoint:
-  monitor: Train/relMSE
+  monitor: Train/MSE
   mode: min
   every_n_train_steps: 6
 

@@ -18,6 +18,7 @@ from node.data_modules import build_subj_act_trajs
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("subj_id", type=int)
     parser.add_argument("data_config_path", type=Path)
     parser.add_argument("data_shared_config_path", type=Path)
     parser.add_argument("config_wandb_path", type=Path)
@@ -26,7 +27,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     wandb_config = OmegaConf.load(args.config_wandb_path)
-    subj_id = int(re.search(r"subj-(\d+)", wandb_config.group)[1])
+    subj_id = args.subj_id
     # load config file
     data_config: DictConfig = OmegaConf.merge(
         OmegaConf.load(args.data_config_path),
@@ -36,9 +37,9 @@ if __name__ == "__main__":
     torch.manual_seed(data_config.seed)
 
     run = wandb.init(
-        name=f"data-{data_config.data.act}-" + generate_id(),
+        name="data-" + generate_id(),
         config=data_config,
-        tags=["normalized"],
+        tags=["normalized", f"subj{subj_id}", data_config.data.act],
         **dict(wandb_config)
     )
 

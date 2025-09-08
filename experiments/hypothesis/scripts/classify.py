@@ -25,6 +25,7 @@ from components.classify import build_lh_table
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("subj_id", type=int)
     parser.add_argument("datasets_dir", type=Path)
     parser.add_argument("checkpoints_dir", type=Path)
     parser.add_argument("wandb_config", type=Path)
@@ -33,10 +34,11 @@ if __name__ == "__main__":
 
     # load config file
     wandb_config: DictConfig = OmegaConf.load(args.wandb_config)
-    subj_id = int(re.search(r"subj-(\d+)", wandb_config.group)[1])
+    subj_id = args.subj_id
 
     run = wandb.init(
         name="classify-" + generate_id(),
+        tags=[f"subj{subj_id}"],
         **dict(wandb_config)
     )
 

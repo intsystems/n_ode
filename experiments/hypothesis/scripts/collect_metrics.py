@@ -3,6 +3,7 @@
 """
 import argparse
 from pathlib import Path
+from omegaconf import OmegaConf, DictConfig
 
 import pandas as pd
 import plotly.express as px
@@ -15,13 +16,16 @@ from node.metrics import compute_agragate_metrics, make_recall_hist
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("wandb_config", type=Path)
     parser.add_argument("classify_tables_dir", type=Path)
     parser.add_argument("results_dir", type=Path)
     args = parser.parse_args()
 
+    wandb_config: DictConfig = OmegaConf.load(args.wandb_config)
+
     run = wandb.init(
         name="results-" + generate_id(),
-        project="node"
+        **dict(wandb_config)
     )
 
     lh_df = []
@@ -58,13 +62,13 @@ if __name__ == "__main__":
     agr_metrics = pd.concat(agr_metrics, ignore_index=True)
     agr_metrics["subj"] = agr_metrics["subj"].astype(str)
     agr_metrics.to_csv(args.results_dir / "agr_metrics.csv", index=False)
-    run.log({"agr_metrics": wandb.Table(dataframe=agr_metrics)})
+    run.log({"agr_metrics_table": wandb.Table(dataframe=agr_metrics)})
 
     agr_metrics.drop(columns=["method"], inplace=True)
     agr_metrics = pd.melt(agr_metrics, id_vars=["subj"], var_name="metric")
     metrics_bar = px.bar(agr_metrics, x="metric", y="value", color="subj", barmode="group")
     metrics_bar.write_html(args.results_dir / "agr_metrics.html")
-    run.log({"agr_metrics": wandb.Plotly(metrics_bar)})
+    run.log({"agr_metrics_hist": wandb.Plotly(metrics_bar)})
 
     recall_hists = pd.concat(recall_hists, ignore_index=True)
     fig = px.bar(recall_hists, x="act", y="recall", color="subj", barmode="group")

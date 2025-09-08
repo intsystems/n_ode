@@ -22,6 +22,7 @@ from components.field_module import LitNodeHype
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("subj_id", type=int)
     parser.add_argument("train_config", type=Path)
     parser.add_argument("data_config", type=Path)
     parser.add_argument("train_dataset", type=Path)
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     data_config: DictConfig = OmegaConf.load(args.data_config)
     wandb_config: DictConfig = OmegaConf.load(args.wandb_config)
 
-    subj_id = int(re.search(r"subj-(\d+)", wandb_config.group)[1])
+    subj_id = args.subj_id
 
     # set rand seed
     torch.manual_seed(train_config.seed)
@@ -49,8 +50,8 @@ if __name__ == "__main__":
     lit_node = LitNodeHype(vf, loss_funcs, dict(train_config.optim), dict(train_config.odeint))
 
     logger = WandbLogger(
-        name=f"train-{data_config.data.act}-" + generate_id(),
-        tags=["mlp_tanh", "mse"],
+        name=f"{data_config.data.act}-{subj_id}-" + generate_id(4),
+        tags=["mlp_tanh", "mse", f"subj{subj_id}", data_config.data.act],
         config=dict(train_config),
         log_model="all",
         # it only attributes to wandb cloud

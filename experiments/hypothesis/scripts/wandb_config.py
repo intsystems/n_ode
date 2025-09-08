@@ -8,7 +8,7 @@ import wandb.util
 if __name__ == "__main__":
     wandb_config = {
         "project": "node",
-        "group": "hypothesis-" + f"subj-{snakemake.wildcards["subj_id"]}-" + wandb.util.generate_id(length=4),
+        "group": "hypothesis-"+  wandb.util.generate_id(length=4),
         # "mode": "disabled"
     }
 

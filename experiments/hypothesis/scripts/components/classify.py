@@ -11,7 +11,7 @@ from rich.progress import track
 
 from node.data_modules import ActivityDataModule
 from node.field_module import get_trajectory_mask
-from .field_module import LitNodeHype, compute_lh
+from .field_module import LitNodeHype
 
 console = Console()
 
@@ -35,6 +35,7 @@ def build_lh_table(
             traj_num: int = traj_num.item()
             if cur_traj_num != traj_num:
                 any(models_lh.values() | select(lambda l: l.append(0.0)))
+                cur_traj_num = traj_num
 
             for model_act, model in models.items():
                 z_0 = traj[:, 0, :]

@@ -1,0 +1,29 @@
+vf:
+  input_dim: 10
+  hidden_dim: 100
+  num_layers: 10
+odeint:
+  method: dopri5
+  atol: 1.0e-3
+  rtol: 1.0e-3
+optim:
+  lr: 5.0e-4
+  #weight_decay: 1.0e-6
+trainer:
+  accelerator: cpu
+  # would like: until convergance
+  max_epochs: 30
+  # max_steps: 10
+  log_every_n_steps: 3
+early_stop:
+  # chose relMSE because it's easier to interpret and
+  # set understandable threshold
+  monitor: Val/relMSE
+  mode: min
+  min_delta: 1.0e-1
+  patience: 5
+model_checkpoint:
+  monitor: Val/MSE
+  mode: min
+
+seed: 129

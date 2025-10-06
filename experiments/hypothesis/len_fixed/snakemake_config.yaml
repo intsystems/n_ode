@@ -1,0 +1,7 @@
+acts:
+  - ups
+  - jog
+subjs: [0, 1, 2]
+raw_data_dir: ../../../data
+hyper_act: jog
+hyper_subj: 0

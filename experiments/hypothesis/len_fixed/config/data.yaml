@@ -1,0 +1,7 @@
+data:
+  dim: 10
+  max_len: 20
+  data_type: rotationRate
+
+test_ratio: 0.1
+seed: 123

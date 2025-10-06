@@ -1,10 +1,13 @@
 ACTIVITIES = ["ups", "jog"]
 PARTICIPANTS = [0, ]
+traj_lens = range(10, 150 + 1, 20)
 RAW_DATA_DIR = "../../data"
-ACT_DATA_DIR = "act_data"
+ACT_DATA_DIR = "data"
 CHECKPOINTS_DIR = "checkpoints"
 RESULT_DIR = "results"
 # dir to pipeline configs is "config"
+
+configfile: "snakemake_config.yaml"
 
 rule all_classify:
     input:
@@ -83,16 +86,15 @@ rule make_dataset:
     input:
         "scripts/make_dataset.py",
         config_path = "config/{act}/data.yaml",
-        shared_config_path = "config/data.yaml",
         config_wandb_path = "config/wandb.yaml"
     output:
-        f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{{act}}/train.pkl",
-        f"tmp/{ACT_DATA_DIR}/subj_{{subj_id}}/{{act}}/test.pkl",
+        "tmp/data/subj_{subj_id}/{act}/N_{traj_len}/test.pkl",
+        "tmp/data/subj_{subj_id}/{act}/N_{traj_len}/train.pkl",
     shell:
-        f"""
-        python scripts/make_dataset.py {{wildcards.subj_id}} {{input.config_path}} \
-        {{input.shared_config_path}} {{input.config_wandb_path}} {RAW_DATA_DIR} \
-        tmp/{ACT_DATA_DIR}/subj_{{wildcards.subj_id}}/{{wildcards.act}}
+        """
+        python scripts/make_dataset.py {wildcards.subj_id} {wildcards.act} \
+        {wildcards.traj_len} {input.config_path} {config[raw_data_dir]} \
+        tmp/data/subj_{{wildcards.subj_id}}/{{wildcards.act}}/N_{wildcards.traj_len}
         """
 
 rule configure_wandb:

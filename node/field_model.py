@@ -26,7 +26,7 @@ class VectorFieldMLP(nn.Module):
                 # explictly name each batch norm
                 # for convinience in futher pyro extension
                 # self.layers.add_module(f"batch_norm_{i}", nn.BatchNorm1d(hidden_dim))
-                self.layers.append(nn.Dropout1d(p=0.1))
+                self.layers.append(nn.Dropout1d(p=0.05))
 
             self.layers.extend([
                 nn.Linear(hidden_dim, hidden_dim),

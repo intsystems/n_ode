@@ -1,9 +1,9 @@
 activity_codes:
-  #dws: [1, 2, 11]
+  dws: [1, 2, 11]
   jog: [9,16]
   ups: [3,4,12]
-  # wlk: [7,8,15]
-  #std: [6,14]
-  #sit: [5,13]
+  wlk: [7,8,15]
+  std: [6,14]
+  sit: [5,13]
 
 num_participants: 24

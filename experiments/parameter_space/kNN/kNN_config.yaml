@@ -1,4 +1,0 @@
-n_neighbors: 2
-weights: distance
-p: 2
-n_jobs: 6

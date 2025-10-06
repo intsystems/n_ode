@@ -21,3 +21,13 @@
 
 Бывают разные работы: можно ислледовать какие-нибудь теоретические свойства модели/алгоритма (сходимость, существование, единственность ...). Можно предложить численный алгоритм, основываясь на теоретической модели. Моя работа о "новых" методах классификации: я предлагаю модель данных и численный алгоритм классификации.
 
+## Papers reporting classification results on MotionSense
+
+| Paper | Metric | Value | Comment |
+| --- | --- | --- | --- |
+| [Human Activity Classification Using Recurrence Plot and Residual Network](https://ieeexplore.ieee.org/abstract/document/10420336) | Accuracy | 92.31% | Can't access paper (payed) and see how the classification's been performed; RNN as model |
+| [Stochastic recognition of physical activity and healthcare using tri-axial inertial wearable sensors](https://www.mdpi.com/2076-3417/10/20/7122) | Accuracy | 88.25% | Different models for classification; has Precision, Recall, $F_1$ for each activity and method; Confusion matrix;  |
+| [Masked reconstruction based self-supervision for human activity recognition](https://www.pgrady.net/data/masked-reconstruction.pdf) | Accuracy | 88.02 | BERT model; Train/test split is per subjects which is not similar to my case |
+| DeepConvLSTM | Metric | Value | Comment |
+| [Sensors technologies for human activity analysis based on SVM optimized by PSO algorithm](https://www.researchgate.net/profile/Ahmad-Jalal-9/publication/384676542_Sensors_Technologies_for_Human_Activity_Analysis_Based_on_SVM_Optimized_by_PSO_Algorithm/links/6702a9a0553d245f9e52ad9d/Sensors-Technologies-for-Human-Activity-Analysis-Based-on-SVM-Optimized-by-PSO-Algorithm.pdf) | Metric | Value | Comment |
+

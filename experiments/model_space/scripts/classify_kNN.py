@@ -1,0 +1,90 @@
+""" Script to launch trajectories classification with kNN.
+    Editable.
+"""
+import argparse
+import pickle
+from pipe import select
+from pathlib import Path
+from omegaconf import OmegaConf
+from rich.console import Console
+
+import numpy as np
+import pandas as pd
+
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score
+
+import wandb
+from wandb.util import generate_id
+
+
+console = Console()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("act_feat_matr_path", type=Path)
+    parser.add_argument("kNN_config_path", type=Path)
+    parser.add_argument("config_wandb_path", type=Path)
+    parser.add_argument("model_save_dir", type=Path)
+    parser.add_argument("classify_save_dir", type=Path)
+    args = parser.parse_args()
+
+    knn_config = OmegaConf.load(args.kNN_config_path)
+    wandb_config = OmegaConf.load(args.config_wandb_path)
+
+    run = wandb.init(
+        name="classify-kNN-" + generate_id(),
+        **dict(wandb_config)
+    )
+
+    run.use_artifact("act_features:latest")
+    with open(args.act_feat_matr_path, "rb") as f:
+        acts_train_test = pickle.load(f)
+    # mapping act_name -> act_indx
+    acts_to_indx = dict(zip(acts_train_test.keys(), range(len(acts_train_test))))
+    # mapping act_indx -> act_name
+    indx_to_act = dict(enumerate(acts_train_test.keys()))
+
+    # do data transformations
+    pass
+
+    X_train = np.concat(list(
+        acts_train_test.values() | select(lambda x: x["train"])
+    ))
+    X_test = np.concat(list(
+        acts_train_test.values() | select(lambda x: x["val"])
+    ))
+    y_train = np.concat(list(
+        iter(acts_train_test.items()) |
+        select(lambda x: np.full(x[1]["train"].shape[0], acts_to_indx[x[0]]))
+    ))
+
+    classifier = KNeighborsClassifier(**dict(knn_config))
+    with console.status("Training model..."):
+        classifier.fit(X_train, y_train)
+    with open(args.model_save_dir / "kNN.pkl", "wb") as f:
+        pickle.dump(classifier, f)
+    run.log_artifact(
+        args.model_save_dir / "kNN.pkl",
+        "classifier_kNN", 
+        type="model"
+    )
+
+    y_pred = pd.Series(classifier.predict(X_test)).map(lambda v: indx_to_act[v])
+    y_true = []
+    for act in acts_to_indx:
+        y_true.append(pd.Series(
+            [act] * acts_train_test[act]["val"].shape[0]
+        ))
+    y_true = pd.concat(y_true, ignore_index=True)
+    result = pd.DataFrame({
+        "pred": y_pred,
+        "true": y_true
+    })
+    save_dir = Path(args.classify_save_dir)
+    result.to_csv(save_dir / "kNN.csv", index=False)
+    run.log_artifact(
+        save_dir / "kNN.csv",
+        "cls_result_kNN",
+        type="dataset"
+    )

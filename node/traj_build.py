@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset, TensorDataset
 import scipy.linalg as linalg
 
-from .raw_data_loading import creat_time_series, set_data_types
+from .raw_data_loading import create_time_series, set_data_types
 
 
 def normalize_traj(traj: torch.Tensor) -> torch.Tensor:
@@ -33,7 +33,7 @@ def slice_traj_mat(traj_matrix: np.ndarray, traj_len: int) -> tuple[np.ndarray]:
         batches = np.empty((0, traj_len, traj_dim))
     # compose residual batches
     pad_len = traj_len - traj_residue_len
-    if pad_len > 0:
+    if traj_residue_len > 0:
         residue_batch = np.concat(
             [traj_matrix[num_slices * traj_len:], np.zeros((pad_len, traj_dim))]
         )
@@ -41,7 +41,9 @@ def slice_traj_mat(traj_matrix: np.ndarray, traj_len: int) -> tuple[np.ndarray]:
         batches = np.concat([batches, residue_batch])
 
     # compute batches durations
-    durations = [traj_len for _ in range(num_slices)] + [traj_residue_len]
+    durations = [traj_len for _ in range(num_slices)]
+    if traj_residue_len > 0:
+        durations += [traj_residue_len]
     durations = np.array(durations)
 
     return batches, durations
@@ -94,7 +96,7 @@ def make_trajectories(config: dict, data_path: Path, traj_dir: Path = "trajector
 
     for activity, act_codes in data_params["activity_codes"].items():
         # get labeled magnitudes of chosen signal
-        series_df = creat_time_series(
+        series_df = create_time_series(
             str(data_path),
             set_data_types([config["data_type"]]),
             [activity],

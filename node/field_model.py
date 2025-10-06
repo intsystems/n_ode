@@ -26,7 +26,7 @@ class VectorFieldMLP(nn.Module):
                 # explictly name each batch norm
                 # for convinience in futher pyro extension
                 # self.layers.add_module(f"batch_norm_{i}", nn.BatchNorm1d(hidden_dim))
-                self.layers.append(nn.Dropout1d(p=0.1))
+                self.layers.append(nn.Dropout1d(p=0.05))
 
             self.layers.extend([
                 nn.Linear(hidden_dim, hidden_dim),
@@ -47,3 +47,6 @@ class VectorFieldLinear(nn.Linear):
         self.weight = nn.Parameter(
             torch.zeros_like(self.weight, device=self.weight.device)
         )
+    
+    def forward(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        return super().forward(x)

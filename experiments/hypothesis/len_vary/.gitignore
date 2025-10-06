@@ -1,0 +1,4 @@
+# local log files
+wandb
+tmp
+config/**/wandb.yaml

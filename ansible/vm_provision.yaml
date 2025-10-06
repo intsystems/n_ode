@@ -1,0 +1,115 @@
+- name: Start VM
+  hosts: localhost
+  gather_facts: false
+  vars:
+    instance_name: cloud-compute
+    user_name: sem-k32
+    ssh_key_path: ~/.ssh/node_yc
+  tasks:
+    - name: Wait for VM to appear in yc
+      command: yc compute instance get --name {{ instance_name }} --format json
+      register: vm_info
+      until: vm_info.stdout | from_json | json_query("status") == "RUNNING"
+      retries: 10
+      delay: 5
+    - name: Extract external IP
+      set_fact:
+        vm_ip: "{{ vm_info.stdout | from_json | json_query('network_interfaces[0].primary_v4_address.one_to_one_nat.address') }}"
+    - name: Add the new host to dynamic inventory
+      add_host:
+        name: dynamic_vm
+        ansible_host: "{{ vm_ip }}"
+        ansible_user: "{{ user_name }}"
+        ansible_ssh_private_key_file: "{{ ssh_key_path }}"
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+- name: Setup VM
+  vars_files:
+    - variables.yaml
+  hosts: dynamic_vm
+  tasks:
+    - name: Check connection
+      ping:
+        data: "Hello"
+    - name: Configure git user
+      community.general.git_config:
+        name: user.name
+        value: "{{ git_name }}"
+        scope: global
+    - name: Configure git email
+      community.general.git_config:
+        name: user.email
+        value: "{{ git_email }}"
+        scope: global
+    - name: Get latest repo from github
+      git:
+        repo: "https://github.com/intsystems/n_ode.git"
+        dest: "n_ode"
+        version: hypothesis
+    - name: Copy raw dataset
+      become: true
+      synchronize:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        recursive: yes
+      loop:
+        - src: ../data/A_DeviceMotion_data
+          dest: n_ode/data/
+        - src: ../data/data_subjects_info.csv
+          dest: n_ode/data/data_subjects_info.csv
+    - name: Add deadsnakes PPA (Ubuntu)
+      become: true
+      apt_repository:
+        repo: ppa:deadsnakes/ppa
+        state: present
+    - name: Install Python 3.12 and pip tools
+      become: true
+      package:
+        name: 
+          - python3.12
+          - python3-pip
+          - python3-venv
+        state: present
+    - name: Install tmux
+      become: true
+      package:
+        name:
+          - tmux
+        state: present
+    - name: Configure tmux
+      become: true
+      copy:
+        dest: "~/.tmux.conf"
+        content: |
+          set-option -g mouse on
+    - name: Install poetry
+      shell: "curl -sSL https://install.python-poetry.org | python3 -"
+      register: ps
+    - debug: var=ps.stdout_lines
+    - name: Add poetry to system PATH in /etc/environment
+      ansible.builtin.lineinfile:
+        path: ~/.profile
+        line: 'PATH=$PATH:$HOME/.local/bin:'
+        state: present
+    - name: Config poetry
+      shell: 
+        cmd: source ~/.profile; poetry config virtualenvs.in-project true
+        executable: /bin/bash
+    - name: Setup env via poetry
+      shell:
+        cmd: source ~/.profile; poetry install
+        chdir: n_ode
+        executable: /bin/bash
+    - name: Configure wandb
+      ansible.builtin.lineinfile:
+        path: ~/.profile
+        line: 'WANDB_API_KEY="{{ wandb_api_key }}"; export WANDB_API_KEY'
+        state: present
+# - name: Stop VM
+#   hosts: localhost
+#   gather_facts: false
+#   vars:
+#     instance_name: cloud_compute
+#   tasks:
+#     - name: Stop VM
+#       command: yc compute instance stop --name {{ instance_name }}

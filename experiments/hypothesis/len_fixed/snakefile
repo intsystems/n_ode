@@ -1,0 +1,161 @@
+RESULT_DIR = "results"
+
+configfile: "snakemake_config.yaml"
+
+rule all_classify:
+    input:
+        expand(
+            "tmp/classify/subj_{subj_id}_classify_table.csv",
+            subj_id=config["subjs"]
+        )
+
+rule all_train:
+    input:
+        expand(
+            "tmp/checkpoints/subj_{subj_id}/{act}_checkpoint.ckpt",
+            act=config["acts"], subj_id=config["subjs"]
+        )
+
+rule all_data:
+    input:
+        expand(
+            "tmp/data/subj_{subj_id}/{act}/train.pkl", 
+            act=config["acts"], subj_id=config["subjs"]
+        )
+
+rule all:
+    input:
+        "results/agr_metrics.csv",
+        "results/agr_metrics.html",
+        "results/recall_hist.html"
+
+rule make_results:
+    input:
+        "scripts/collect_metrics.py",
+        expand("tmp/classify/subj_{subj_id}_classify_table.csv", subj_id=config["subjs"]),
+        config_wandb_path = "tmp/config/wandb.yaml"
+    output:
+        "results/agr_metrics.csv",
+        "results/agr_metrics.html",
+        "results/recall_hist.html"
+    shell: 
+        """
+        python scripts/collect_metrics.py {input.config_wandb_path} tmp/classify \
+        results
+        """
+
+rule classify:
+    input:
+        "scripts/classify.py",
+        [f"tmp/checkpoints/subj_{{subj_id}}/{act}_checkpoint.ckpt" for act in config["acts"]],
+        [f"tmp/data/subj_{{subj_id}}/{act}/test.pkl" for act in config["acts"]],
+        [f"tmp/config/{act}/train.yaml" for act in config["acts"]],
+        config_wandb_path = "tmp/config/wandb.yaml"
+    output:
+        "tmp/classify/subj_{subj_id}_classify_table.csv"
+    shell:
+        """
+        python scripts/classify.py {wildcards.subj_id} \
+        tmp/data/subj_{wildcards.subj_id} tmp/checkpoints/subj_{wildcards.subj_id} \
+        {input.config_wandb_path} tmp/classify
+        """
+
+rule train:
+    input:
+        "scripts/train_on_activity.py",
+        train_dataset = "tmp/data/subj_{subj_id}/{act}/train.pkl",
+        test_dataset = "tmp/data/subj_{subj_id}/{act}/test.pkl",
+        config_train = "tmp/config/{act}/train.yaml",
+        config_data = "tmp/config/{act}/data.yaml",
+        config_wandb_path = "tmp/config/wandb.yaml"
+    output:
+        "tmp/checkpoints/subj_{subj_id}/{act}_checkpoint.ckpt"
+    shell:
+        """
+        python scripts/train_on_activity.py {wildcards.act} {wildcards.subj_id} \
+        {input.config_train} {input.config_data} \
+        {input.train_dataset} {input.test_dataset} {input.config_wandb_path} \
+        tmp/checkpoints/subj_{wildcards.subj_id}
+        """
+
+rule vf_hyperopt:
+    input:
+        "scripts/train_hyper_opt.py",
+        train_dataset = f"tmp/data/subj_{config['hyper_subj']}/{config['hyper_act']}/train.pkl",
+        test_dataset = f"tmp/data/subj_{config['hyper_subj']}/{config['hyper_act']}/test.pkl",
+        config_train = f"tmp/config/{config['hyper_act']}/train.yaml",
+    # output:
+        # TODO
+    shell:
+        """
+        docker-compose up -d;
+        python scripts/train_hyper_opt.py {config[hyper_act]} {config[hyper_subj]} \
+        {input.config_train} {input.train_dataset} {input.test_dataset};
+        docker-compose down;
+        """
+
+# alternative split using the test ratio
+# rule train_test_split:
+#     input:
+#         "scripts/test_ratio_split.py",
+#         config_path = "tmp/config/{act}/data.yaml",
+#         config_wandb_path = "tmp/config/wandb.yaml"
+#     output:
+#         "tmp/data/subj_{subj_id}/{act}/train.pkl",
+#         "tmp/data/subj_{subj_id}/{act}/test.pkl",
+#     shell:
+#         """
+#         python scripts/test_ratio_split.py {wildcards.act} {wildcards.subj_id} \
+#         {input.config_path} {input.config_wandb_path} \
+#         tmp/data/subj_{wildcards.subj_id}/{wildcards.act}
+#         """
+
+rule train_test_split:
+    input:
+        "scripts/act_code_split.py",
+        "tmp/data/subj_{subj_id}/{act}/full_dataset.pkl",
+        config_path = "tmp/config/{act}/data.yaml",
+        config_wandb_path = "tmp/config/wandb.yaml"
+    output:
+        "tmp/data/subj_{subj_id}/{act}/train.pkl",
+        "tmp/data/subj_{subj_id}/{act}/test.pkl",
+    shell:
+        """
+        python scripts/act_code_split.py {wildcards.act} {wildcards.subj_id} \
+        {input.config_path} {input.config_wandb_path} \
+        tmp/data/subj_{wildcards.subj_id}/{wildcards.act}
+        """
+
+rule make_dataset:
+    input:
+        "scripts/make_dataset.py",
+        config_path = "tmp/config/{act}/data.yaml",
+    output:
+        "tmp/data/subj_{subj_id}/{act}/full_dataset.pkl",
+    shell:
+        """
+        python scripts/make_dataset.py {wildcards.subj_id} {wildcards.act} \
+        {input.config_path} {config[raw_data_dir]} {output[0]}
+        """
+
+rule aggregate_configs:
+    input:
+        branch(exists("config/data.yaml"), "config/data.yaml"),
+        branch(exists("config/train.yaml"), "config/train.yaml" ),
+        branch(exists("config/{act}/data.yaml"), "config/{act}/data.yaml"),
+        branch(exists("config/{act}/train.yaml"), "config/{act}/train.yaml")
+    output:
+        "tmp/config/{act}/data.yaml",
+        "tmp/config/{act}/train.yaml"
+    shell:
+        """
+        python scripts/aggregate_configs.py {wildcards.act}
+        """
+
+rule configure_wandb:
+    input:
+        "scripts/wandb_config.py"
+    output:
+        "tmp/config/wandb.yaml"
+    script:
+        "scripts/wandb_config.py"

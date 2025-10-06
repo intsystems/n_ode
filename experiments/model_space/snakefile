@@ -1,0 +1,112 @@
+ACTIVITIES = ["ups", "jog"]
+#CLASSIFY_METHODS = ["gauss"]
+CLASSIFY_METHODS = ["gauss", "kNN", "boost"]
+RAW_DATA_DIR = "../../data"
+DATASET_DIR_ROOT = "act_data"
+CHECKPOINTS_DIR = "checkpoints"
+CONFIG_DIR = "config"
+ACT_FEAT_FILE = "act_feat.pkl"
+CLASSIFY_MODELS_DIR = "classify_models"
+CLASSIFY_DIR = "classify_results"
+RESULTS_DIR = "results"
+
+rule train_all:
+    input:
+        expand(f"tmp/{CHECKPOINTS_DIR}/{{act}}", act=ACTIVITIES)
+
+rule all_data:
+    input:
+        expand(f"tmp/{DATASET_DIR_ROOT}/{{act}}", act=ACTIVITIES)
+
+rule all_cls:
+    input:
+        expand(f"tmp/{CLASSIFY_DIR}/{{method}}.csv", method=CLASSIFY_METHODS)
+
+rule all:
+    input:
+        f"{RESULTS_DIR}/agr_metrics.csv",
+        f"{RESULTS_DIR}/recall_hist.html"
+
+rule make_results:
+    input:
+        expand(f"tmp/{CLASSIFY_DIR}/{{method}}.csv", method=CLASSIFY_METHODS),
+        "scripts/collect_metrics.py",
+        config_wandb_path = f"{CONFIG_DIR}/wandb.yaml"
+    output:
+        f"{RESULTS_DIR}/agr_metrics.csv",
+        f"{RESULTS_DIR}/recall_hist.html"
+    shell: f"""
+        python scripts/collect_metrics.py {{input.config_wandb_path}} \
+        tmp/{CLASSIFY_DIR} {RESULTS_DIR}
+    """
+
+rule classify:
+    input:
+        "scripts/classify_{method}.py",
+        act_feat = f"tmp/{ACT_FEAT_FILE}",
+        config_path = f"{CONFIG_DIR}/{{method}}.yaml",
+        config_wandb_path = f"{CONFIG_DIR}/wandb.yaml"
+    output:
+        f"tmp/{CLASSIFY_DIR}/{{method}}.csv",
+        f"tmp/{CLASSIFY_MODELS_DIR}/{{method}}.pkl"
+    shell: f"""
+        python scripts/classify_{{wildcards.method}}.py \
+        {{input.act_feat}} {{input.config_path}} {{input.config_wandb_path}} \
+        tmp/{CLASSIFY_MODELS_DIR} tmp/{CLASSIFY_DIR}
+    """
+
+rule features:
+    input:
+        "scripts/features.py",
+        expand(f"tmp/{CHECKPOINTS_DIR}/{{act}}", act=ACTIVITIES),
+        config_split_path = f"{CONFIG_DIR}/data_split.yaml",
+        config_shared_train_path = f"{CONFIG_DIR}/train.yaml",
+        config_wandb_path = f"{CONFIG_DIR}/wandb.yaml"
+    output:
+        f"tmp/{ACT_FEAT_FILE}"
+    shell: f"""
+        python scripts/features.py tmp/{CHECKPOINTS_DIR} {{input.config_split_path}} \
+        {{input.config_shared_train_path}} {{input.config_wandb_path}} {{output[0]}}
+    """
+
+rule train:
+    input:
+        "scripts/train_on_activity.py",
+        dataset_dir = directory(f"tmp/{DATASET_DIR_ROOT}/{{act}}"),
+        config_train_path = f"{CONFIG_DIR}/{{act}}/train.yaml",
+        config_shared_train_path = f"{CONFIG_DIR}/train.yaml",
+        # for wandb config saving
+        config_data_path = f"{CONFIG_DIR}/{{act}}/data.yaml",
+        config_shared_data_path = f"{CONFIG_DIR}/data.yaml",
+        config_wandb_path = f"{CONFIG_DIR}/wandb.yaml"
+    params:
+        num_workers = 4
+    output:
+        directory(f"tmp/{CHECKPOINTS_DIR}/{{act}}")
+    shell: """
+        python scripts/train_on_activity.py {input.dataset_dir} {input.config_train_path} \
+        {input.config_shared_train_path} {input.config_data_path} \
+        {input.config_shared_data_path} {input.config_wandb_path} \
+        {params.num_workers}
+        """
+
+rule make_dataset:
+    input:
+        "scripts/make_dataset.py",
+        config_path = f"{CONFIG_DIR}/{{act}}/data.yaml",
+        shared_config_path = f"{CONFIG_DIR}/data.yaml"
+    output:
+        directory(f"tmp/{DATASET_DIR_ROOT}/{{act}}")
+    params:
+        DATASET_DIR_ROOT=DATASET_DIR_ROOT,
+        RAW_DATA_DIR=RAW_DATA_DIR
+    script:
+        "scripts/make_dataset.py"
+
+rule configure_wandb:
+    input:
+        "scripts/wandb_config.py"
+    output:
+        f"{CONFIG_DIR}/wandb.yaml"
+    script:
+        "scripts/wandb_config.py"

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Neural Ode Classification"
 authors = ["sem-k32"]
 readme = "README.md"
-packages = [{include = "node"}]
+packages = [{include = "node"}, {include = "hypothesis", from="experiments"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -26,7 +26,21 @@ torchdiffeq = "^0.2.5"
 torchmetrics = "^1.6.1"
 pipe = "^2.2"
 wandb = "^0.19.6"
+snakemake = "^9.5.1"
+rich = "^14.0.0"
+xgboost = "^3.0.2"
+plotly = "^6.2.0"
+optuna = "^4.5.0"
+optuna-integration = "^4.5.0"
+sqlalchemy = "^2.0.43"
+psycopg2-binary = "^2.9.10"
+optuna-dashboard = "^0.19.0"
 
+
+[tool.poetry.group.remote.dependencies]
+ansible = "^11.6.0"
+ansible-dev-tools = "^25.5.2"
+jmespath = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core"]

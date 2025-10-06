@@ -1,0 +1,4 @@
+data:
+  act: ups
+  max_len: 200
+  data_type: rotationRate

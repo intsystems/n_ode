@@ -476,3 +476,8 @@ TSWLatexianTemp*
 
 .snakemake
 .ansible
+
+.DS_Store
+
+.snakemake
+.ansible

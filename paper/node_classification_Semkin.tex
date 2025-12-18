@@ -16,12 +16,18 @@
 \theoremstyle{plain}
 \newtheorem{Lem}{Lemma}
 \newtheorem{Th}{Theorem}
+\newtheorem{problem}{Problem}
 
 \newcommand{\bz}{\ensuremath{\mathbf{z}}}
+\newcommand{\bx}{\ensuremath{\mathbf{x}}}
+\newcommand{\tbx}{\ensuremath{\tilde{\mathbf{x}}}}
+\newcommand{\tbz}{\ensuremath{\tilde{\mathbf{z}}}}
+\newcommand{\beps}{\ensuremath{\boldsymbol{\epsilon}}}
+\newcommand{\delayV}[1]{\overset{\leftarrow}{\mathbf{x}}({#1})}
 
 \begin{document}
 	
-	\title{Time series classification approaches through NeuralODE}
+	\title{{\Huge \hspace{2.5em} Draft version}\\Two robust approaches for classifying time series from dynamical systems}
 	
 	\author*[1]{\fnm{Kirill} \sur{Semkin}}\email{semkin.ki32@gmail.com}
 	\author*[2]{\fnm{Vadim} \sur{Strijov}}\email{strijov@forecsys.ru}
@@ -32,7 +38,7 @@
 	\keywords{time series; classification; dynamical systems; NeuralODE; inertial measurement unit}
 	
 	\maketitle
-	
+
 	\begin{abstract}
 		
 		The task of time series classification is to assign class label to given time series. The number of classes is fixed. It is assumed that each class corresponds to some dynamical system. Each system generates phase trajectories within some probabilistic model. These trajectories are then mapped into empirical observations. The paper investigates how to restore dynamical systems out of experimental data using NeuralODE. We consider fixed and bayesian approaches to defining dynamical systems' parameters. Two classification principles are introduced: bayesian testing and transition to dynamical system's parameters space. Taken's theorem is used to approximate true phase trajectories. At last, time series from inertial measurement unit are classified using given techniques and compared with other machine learning models.
@@ -40,42 +46,62 @@
 	\end{abstract}
 	
 	\section{Introduction}\label{Intro}
-	
-		The paper introduces and analyzes methods for time series classification. By \emph{time series} we understand samples of some \emph{stochastic process}. Consider $x(t)$ to be stochastic process defined on $t \in [0, T]$. Take increasing time stamps $0 \le t_1 < \ldots < t_n \le T$ and define time series as $x_i := x(t_i), \, i \in 1 \ldots n$. So time series are stochastic variables by definition. \emph{Classification} of time series on $M$ classes is a process of assigning a \emph{label} $y \in 1 \ldots M$ to a given time series $x_i$.
 		
-		% Applications
-		Time series classification finds a lot of applications. It is used in medicine to detect arrhythmias or other heart conditions by EEG~\cite{application_eeg_1}. Or to identify seizures and sleep stages from brainwave data~\cite{application_eeg_2}. In speech and audio processing it is used to recognize human emotions from speech signals~\cite{application_sound_1} or bird species from audio recordings~\cite{application_sound_2}. Other fields of application are human activity recognition from wearable sensors~\cite{application_hac} and weather forecasting~\cite{application_weather}. The latter two will be explored in the paper's experiment later.
+		The paper introduces and analyzes methods for time series classification. The \emph{time series} is a sequence of scalar values $x(t_i)= \{x(t_1), \ldots, x(t_n)\}$ defined in discrete times $t_1, \ldots, t_n$. The \emph{multivariate} time series is a sequence of vector values $\bx(t_i)= \{\bx(t_1), \ldots, \bx(t_n)\}$ where values' dimension is $\mathbb{R}^s$. This is equal to having $s$ time series on the same time domain. Everywhere further we assume time series to be multivariate in general. On practice we observe time series $\tbx(t_i)$ distorted by noise $\beps(t_i)$ so $\tbx(t_i) = \bx(t_i) + \beps(t_i)$. We assume the $\beps(t_i)$ to be a zero-mean discrete \emph{stochastic process}. Next, any time series has an associated \emph{class label} $y \in 1 \ldots K$. Here $K$ is the number of classes. A \emph{classifier} is a function $\delta(\tbx(t_i))$ that associates any time series with a class label. To measure classification quality we introduce a \emph{risk function} $r(\delta)$. Now, formulate time series classification problem as:
 		
-		% Methods from literature review
-		There are many methods for time series classification in the literature. \emph{Distance-based} approaches rely on measuring similarity between time series using distance metrics. The metric can be defined using Dynamic Time Warping~\cite{dtw} and the k-Nearest-Neighbors (k-NN) classifier can be used then~\cite{knn_dtw}. \emph{Feature-based} approaches extract finite set of statistical~\cite{stat_feat_1, stat_feat_2} or spectral~\cite{fouirer_feat} features from time series for further classification. \emph{Deep learning} approaches uses neural networks to automatically learn time series features from raw train data. Convolutional neural networks~\cite{application_eeg_1, application_eeg_2}, recurrent neural networks (RNN)~\cite{lstm_feat} or their combination~\cite{application_sound_1, application_hac, application_weather} are designed to process sequential data like time series. Classification with the RNN will be compared to our method in the experiment section.
+		\begin{problem}\label{cls_problem}
+			Given a set of $N$ labeled time series $\mathcal{D} = \{ (\tbx_1(t_i), y_1), \ldots, (\tbx_N(t_i), y_N) \}$ solve an optimization problem $r(\delta) \to \min$. The noise terms $\{\beps_1(t_i), \ldots, \beps_N(t_i)\}$ are assumed to be mutually independent processes. 
+		\end{problem}
 		
-		The underlying mathematical model for time series in the paper is a \emph{dynamical system}. By this we understand a time-invariant \emph{ordinary differential equation (ODE)} of the form
-		\begin{equation}\label{eq:lat_dyn}
-			\begin{cases}
-				\bz = f(\bz), \\
-				\bz(0) = \bz_0,
-			\end{cases}
-		\end{equation}
-		where $\bz \in \mathbb{R}^m$, $f(\bz): \mathbb{R}^m \to \mathbb{R}^m$ is a \textit{vector field}, $\bz_0$ is a \textit{starting point}. \textit{Phase trajectory} $\bz(t)$ is a solution of (\ref{eq:lat_dyn}) for $t \in [0, T]$. Note that the phase trajectory is not directly observed so we call the dynamical system \emph{latent}. Next, introduce an \emph{observation function} $\phi: \mathbb{R}^m \to \mathbb{R}$. It maps phase trajectory to intermediate deterministic representation $y(t) = \phi \big( \bz(t) \big)$. Finally, we introduce a stochastic field $h:  \mathbb{R} \times [0, T] \to \Omega$. It maps intermediate representation to observable stochastic process $x(t) = h(y(t), t)$ introduced at the begging. The process takes random variables on a probability space $(\Omega, \mathcal{F}, \mathbb{P})$. The stochastic field $h$ can be treated as adding noise to original observations $y(t)$.
+		 % Methods from literature review
+		 There are many methods for time series classification in the literature. \emph{Distance-based} approaches rely on measuring similarity between time series using distance metrics. The metric can be defined using Dynamic Time Warping~\cite{dtw} and the k-Nearest-Neighbors (k-NN) classifier can be used then~\cite{knn_dtw}. \emph{Feature-based} approaches extract finite set of statistical~\cite{stat_feat_1, stat_feat_2} or spectral~\cite{fouirer_feat} features from time series for further classification. \emph{Deep learning} approaches uses neural networks to automatically learn time series features from raw train data. Convolutional neural networks~\cite{application_eeg_1, application_eeg_2}, recurrent neural networks (RNN)~\cite{lstm_feat} or their combination~\cite{application_sound_1, application_hac, application_weather} are designed to process sequential data like time series.
+		 
+		 To solve the classification problem~\ref{cls_problem} we need to clarify the rule of assigning class labels to the time series. We also need to introduce a model of the time series. In the paper we assume this model to be a \emph{dynamical system}. We define it as a time-invariant \emph{ordinary differential equation (ODE)} of the form
+		 \begin{equation}\label{eq:lat_dyn}
+		 	\begin{cases}
+		 		\frac{d}{dt} \bz(t) = f(\bz), \\
+		 		\bz(0) = \bz_0,
+		 	\end{cases}
+		 \end{equation}
+		 where $\bz \in M$, $f(\bz): M \to M$ is a \textit{vector field}, $\bz_0$ is a \textit{starting point}, $M$ is an $m$-dimensional differentiable manifold. To find an $\bz(t)$ satisfying (\ref{eq:lat_dyn}) on some time interval is to solve an \emph{initial value problem}. Under some regularity conditions on $f$ the solution is unique~\cite{Wiggins2003}. The $\bz(t)$ is called \textit{phase trajectory}. To connect the dynamical system with the time series we introduce an \emph{observation map} $\alpha: M \to \mathbb{R}^s$. We say a time series $\bx(t_i)$ is generated by the phase trajectory $\bz(t)$ if $ \bx(t_i) = \alpha(\bz(t_i)) $ for all $t_i$. Further we assume all time series to be generated. Next, consider $K$ different dynamical systems with the vector fields $f_j, \  j \in 1, \ldots, K$. If a time series is generated by a phase trajectory from the system $j$, the time series' label is $y = j$. Hence, we have completely described the time series model. Note that $\bz(t_i)$ are not observed and therefore are not part of the $\mathcal{D}$.
+		 
+		 % TODO: insert our time series model illustration
+		 
+		 % Relevance
+		 Our time series' model can be applied to many real-word classification problems. For example, in medicine an electroencephalogram (EEG) is a direct, macroscopic measure of the brain's electrical activity~\cite{med_app}. The activity is governed by the Maxwell's Equations that can be reduced to the ODEs~\cite{DAUNIZEAU20092089}. The EEG can be used for detecting arrhythmias or other heart conditions~\cite{application_eeg_1} as well as to identify seizures and sleep stages from brainwave data~\cite{application_eeg_2}. In the weather forecasting the fundamental equations of atmospheric dynamics can also be reduced to an ODEs system~\cite{Kalnay_2002}. The classification problems in this field include weather regime classification~\cite{weather_regimes} and climate pattern identification~\cite{climate_regimes}. In human activity recognition (HAR) ODEs are primarily used to model the dynamics of human motion. The core idea is that human movement is a continuous physical process governed by laws of mechanics, which can be described by differential equations~\cite{ZHAO2021100114}. This idea can be applied to the basic or fine-grained activity recognition~\cite{Anguita2013APD, har_dl1}, fall detection~\cite{fall_detect}, and other tasks. To conclude, our model is applicable when it is reasonable to assume that observed time series come from some dynamical system of the form (\ref{eq:lat_dyn}).
+		 
+		 To solve the problem \ref{cls_problem} we first \emph{reconstruct} the phase trajectories $\tbz(t_i)$ from the observations $\tbx(t_i)$. The $\tbz(t_i)$ will be the noisy estimates of the $\bz(t_i)$. The reconstruction will be based on building an embedding of the manifold $M$. In general, an embedding of a manifold $M$ is a smooth map $\phi: M \to N$ into another manifold $N$ that is a diffeomorphism onto its image $\phi(M)$. It follows that phase trajectories $\bz(t) \subset M$ and $\phi(\bz(t)) \subset\phi(M)$ are basically identical (more strictly, diffeomorphic). One approach to build an embedding from the time series is the Whitney Embedding Theorem~\cite{whitney}. If $\alpha$ is a generic map from $M$ to $\mathbb{R}^{2m + 1}$ then $\alpha$ itself is an embedding. Therefore, the time series $\tbx(t_i)$ are the reconstructed $\tbz(t_i)$. However, this approach requires an excessive $2m + 1$ number of time series even when $m$ is rather small. Another approach is the Takens embedding theorem~\cite{takens2006detecting}. It requires only one observed time series $x(t_i)$. If $\alpha$ is a generic map from $M$ to $\mathbb{R}$ then the embedding is given by the map $\phi(\bz) = \big( \alpha(\bz), f^{-1}(\alpha(\bz)), \ldots, f^{-k}(\alpha(\bz)) \big)$ where $k > 2m$. If we apply $\phi$ to the $\bz(t_i)$ we obtain $\phi(\bz(t_i)) = \big( x(t_i), x(t_{i-1}), \ldots, x(t_{i-k})\big)$ which we call \emph{delay vector} and denote as $\delayV{t_i}$. If we compose a delay vector from the noisy time series $\tilde{x}(t_i)$ then it will be the reconstructed $\tbz(t_i)$. Illustration of the Takens theorem is on the Fig.~\ref{fig:takens}.
+		 
+		 \begin{figure}[h]
+		 	\centering
+		 	\includegraphics[width=\textwidth, keepaspectratio]{takens}
+		 	
+		 	\caption{Application of the Takens theorem. On the left are observations $x(t)$. To build a point of the latent phase trajectory $\bz(t)$ we must take several lagged observation values (colored in red), e.g. $\bz(t_i) = \big( x(t_i), x(t_{i-1}), x(t_{i-2}) \big)^{\text{T}}$.}\label{fig:takens}
+		 \end{figure}
+		 
+		  After reconstructing the phase trajectories we will build approximations $\hat{f}_j$ for the system's vector fields $f_j$. Our approach for the approximation is the Neural Ordinary Differential Equations (NODE)~\cite{node}. It allows to use gradient optimization when an optimized objective depends on ODE trajectories. There are plenty of papers using NODE for regression tasks. For example, NODE are used in the context of the physics-informed ODE~\cite{LAI2021116196, phys_informed_2} and control learning~\cite{NEURIPS2019_99a40143, node_rl}. However very few papers analyze NODE in the context of time series classification. Authors of~\cite{8892510} reinterpreted convolutional neural networks in terms of latent ODE dynamics and used it for hyperspectral image classification. Paper~\cite{node_control} solved classification problem in terms of control theory and NODE. Our paper contributes to the NODE applications for the general dynamical systems.
+		  
+		  % NODE's time series model critique + novelty
+		  Actually, the NODE paper~\cite{node} introduced its own time series model called latent ODE. It is illustrated on the Fig.~\ref{fig:node_ts}. The model is probabilistic and is described as
+		  
+		  \begin{gather*}
+		  	\bz_{t_0} \sim p_0(\bz_{t_0}), \\
+		  	\bz_{t_1}, \bz_{t_2}, \ldots, \bz_{t_N} = \text{ODESolve}(\bz_{t_0}, f, t_0, \ldots, t_N), \\
+		  	\text{each } \bx_{t_i} \sim p_x(x|\bz_{t_i})
+		  \end{gather*}
+		  
+		  where $\text{ODESolve}()$ is the solution of the initial value problem. Authors then used a variational autoencoder (VAE)~\cite{Kingma2013AutoEncodingVB} to inference the distributions $p_0, p_x$ and the vector field $f$. While this model is more general and is widely used~\cite{cnode, Herrera2020NeuralJO, Seedat2022ContinuousTimeMO}, it has several drawbacks compared to ours. First, it has to parameterize $f, p_x$ and a VAE. Hence, more data is needed in general to obtain good approximations of these functions. We only need to parameterize $f$. Second, the authors use VAE to obtain $\bz(t_0)$ that does not guarantee good approximation~\cite{bibid}. We can reconstruct $\bz(t_0)$ using the general results discussed above. Third, in the NODE model a connection between the phase trajectories and the observed time series is given by the general distribution $p_x$. Thus, the connection is difficult to interpret. In addition, the VAE is needed to reconstuct the $\bz(t_i)$ from the $\bx(t_i)$. Our reconstruction approaches give explicit and easy ways to obtain $\bz(t_i)$ from the $\bx(t_i)$ and vice versa. Several papers that use Takens theorem ideas with the NODE to restore latent dynamics can be found in the literature~\cite{node_takens_1, node_takens_2}. But unfortunately, it is poorly covered for machine learning applications. Our paper aims to close this gap.
+		  
+		  \begin{figure}[h]
+		  	\centering
+		  	\includegraphics[width=\textwidth, keepaspectratio]{node_ts}
+		  	
+		  	\caption{Computational graph of the latent ODE model. Source: reprinted from Chen et al.(2018)}\label{fig:node_ts}
+		  \end{figure}
+		  
+		  % TODO: мы предложим два метода классификации основанных на f. Есть 4 проблемы его применения: ... . Предлагаем простой способ их решения + это наш contribution. В конце будут эксперименты
 		
-		% TODO: insert our time series model illustration
 		
-		The reason for introducing an intermediate process $y$ is to be able to use Takens theorem \cite{takens2006detecting}. It basically states that if can estimate $y(t)$ from $x(t)$ then we are able to reconstruct latent phase trajectory $z(t)$.  It is important for classification because we \emph{associate each class label $y$ with some dynamical system} $f_y(\cdot), \, y \in 1 \ldots M$. Illustration of the theorem is on the Fig.~\ref{fig:takens}. If we know $f_y(\cdot)$ for every $y$ and $z(t)$ is given, we can inference the dynamical system that generated this phase trajectory. Thus we can inference class label and perform classification.
-		
-		\begin{figure}[h]
-			\centering
-			\includegraphics[width=\textwidth, keepaspectratio]{takens}
-			
-			\caption{Application of the Takens theorem. On the left are observations $y(t)$. To build a point of the latent phase trajectory $\bz(t)$ we must take several lagged observation values (colored in red), e.g. $\bz(t) = \big( y(t-1), y(t-2), y(t-3) \big)^{\text{T}}$.}\label{fig:takens}
-		\end{figure}
-		
-		% Contains NODE review
-		When we don't know vector fields $f_y(\cdot)$ we approximate them from labeled trajectories. The algorithm for approximation we will use is Neural Ordinary Differential Equations (NODE)~\cite{node}. It allows to use gradient optimization when an optimized objective depends on ODE trajectories. There are plenty of papers using NODE for regression tasks. For example, NODE are used in the context of physics-informed ODE~\cite{LAI2021116196, phys_informed_2} and control learning~\cite{NEURIPS2019_99a40143, node_rl}. However very few papers analyze NODE in the context of time series classification. Authors of~\cite{8892510} reinterpreted convolutional neural networks in terms of latent ODE dynamics and used it for hyperspectral image classification. Paper~\cite{node_control} interestingly formulated and solved general classification problem in terms of control theory and NODE. Our paper contributes to NODE classification in terms of latent dynamical systems for time series.
-		
-		% NODE's time series model critique
-		Original NODE paper~\cite{node} introduced its own generative latent time-series model in its section 5. It basically uses the same latent dynamical system model as ours. Observations are generated from latent trajectories through general probability distribution. The authors then used variational autoencoder~\cite{Kingma2013AutoEncodingVB} to inference the distribution and latent vector field. We point out three drawbacks of this approach. First, it struggles to define the starting point $\bz_0$ of the latent trajectories from the observations. Authors need to introduce additional probability distribution to account for that. Second, it is not clear how introduced probability distributions should look like for particular tasks. Third, this approach does not give explicit way to reconstruct latent trajectories from the observations. Authors have to resort to variational principle~\cite{blei2017variational} and introduce additional parametric models for reconstruction. On the contrary, our time series model does not have problems with starting point and trajectory reconstruction thanks to the Takens theorem. Our general stochastic component $h(y(t), t)$ of the model only affects transition from intermediate state $y$ to observations $x$ and can be easily interpreted for particular tasks as a noise. Applying Takens theorem ideas and NODE to restore latent dynamics can be find in literature~\cite{node_takens_1, node_takens_2}. But unfortunately, it is poorly covered for machine learning applications. Our paper aims to close this gap.
-		
-		% TODO: insert graphical models
 		
 		% Classification approachess
 		To build a classifier we will first introduce two probabilistic models to connect class label and dynamical system. The models will be expressed as \textit{probabilistic graphical models}~\cite{bishop}. Then, we will use bayessian classification~\cite{bishop}, variational principle~\cite{blei2017variational} or change of variables~\cite{hogg2005introduction} as means for different classification methods. They are all theoretical principles from statistics that lead to particular classifier. We will explore them later. 

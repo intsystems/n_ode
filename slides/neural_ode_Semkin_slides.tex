@@ -10,19 +10,22 @@
 \usepackage[utf8]{inputenc}			% кодировка исходного текста
 \usepackage[english,russian]{babel}	% локализация и переносы
 \usepackage{indentfirst}
+\usepackage{subfig}
+\usepackage{graphicx}
+\usepackage{caption}
 \frenchspacing
 
-\newcommand{\delayV}[1]{\overset{\leftarrow}{\textbf{x}}_{#1}}
+\newcommand{\bz}{\ensuremath{\boldsymbol{z}}}
+\newcommand{\bx}{\ensuremath{\boldsymbol{x}}}
+\newcommand{\tbx}{\ensuremath{\tilde{\boldsymbol{x}}}}
+\newcommand{\tbz}{\ensuremath{\tilde{\boldsymbol{z}}}}
+\newcommand{\beps}{\ensuremath{\boldsymbol{\epsilon}}}
+\newcommand{\delayV}[1]{\overset{\leftarrow}{\boldsymbol{x}}({#1})}
 
-\theoremstyle{definition}
-\newtheorem*{Def}{Определение}
-
-\title{Классификация временных рядов в пространстве модели c подходом NeuralODE}
-\author{Сёмкин Кирилл}
-
-\institute[MIPT]{Московский физико-технический институт \\ Кафедра интеллектуальных систем}
-
-\date[2025]{\textit{Научный руководитель}: д.ф.-м.н. Стрижов Вадим Викторович \\ 2025}
+\title{Two robust approaches for classifying time series from dynamical systems}
+\author{Kirill Semkin}
+\institute[MIPT]{Moscow Institute of Physics and Technology \\ Intelligent Systems}
+\date[2025]{\textit{Advisor}: Vadim Strijov, DSc \\ 2025}
 
 \begin{document}
 	
@@ -30,204 +33,145 @@
 		\titlepage
 	\end{frame}
 	
-	\begin{frame}{Проблематика работы}
+	\begin{frame}{Problem}
 		
-		\begin{alertblock}{Проблема}
-			Необходим метод классификации временных рядов, порождаемых скрытыми динамическими системами. Классификация без учёта порождения данных может быть неустойчивой и некорректной.
-		\end{alertblock}
+		Time series classification originated from the $K$ dynamical systems of the form
 		
-		\begin{block}{Цель}
-			Ввести вероятностную постановку порождения временных рядов в связке с моделью \emph{ОДУ}. Решить проблему ненаблюдаемости порождающих динамических систем. Сформулировать формальную задачу классификации и предложить способы решения.
-		\end{block}
-		
-		\begin{exampleblock}{Решение}
-			% Использовать \emph{теорему Такенса} для восстановления зашумлённых фазовых траекторий,
-			Использовать \emph{NeuralODE} для аппроксимации динамических систем. Параметры системы могут быть фиксированными или порождаться \emph{априорным} распределением. Классификацию осуществлять с помощью \emph{байесовского тестирования гипотез} или строить классификатор в пространстве параметров дин. системы.
-		\end{exampleblock}
-		
-	\end{frame}	
-	
-	\begin{frame}{Постановка задачи}
-		
-		Задана обучающая и тестовая выборка временных рядов для каждого класса. Количество классов $K$.
-		
-		Пусть для каждого класса существует динамическая система $\textbf{f}_i$, порождающая траектории $\textbf{z}(t)$ что
-		
-		\begin{equation*}
-			\begin{cases}
-				\dfrac{d \textbf{z}}{dt} (t) = \textbf{f}_i \big( \textbf{z}(t) \big), \\
-				\textbf{z}(0) = 0.
-			\end{cases}
-		\end{equation*}
-		
-		Пусть существует \emph{функция наблюдений} $\phi$: $\phi\big( \textbf{z}(t) \big) = x(t)$.
-		
-		\begin{figure}
-			\centering
-			\includegraphics[width=0.7\textwidth,keepaspectratio]{img/phi_func.png}
-		\end{figure}
-		
-	\end{frame}	
-	
-	\begin{frame}{Восстановление и параметризация дин. системы}
-		
-		Наложив некоторые условия регулярности на $\textbf{f}_i$ и $\phi$, с помощью теоремы Такенса можем получить \emph{вложение} исходных дин. систем в $\mathbb{R}^m$. Фазовыми траекториями будут \emph{вектора задержки} $\delayV{t}$
-		
-		\begin{equation*}
-			\textbf{z}(t) = \delayV{t} := \begin{pmatrix}
-				x(t - L + 1) \\
-				\vdots \\
-				x(t - 1) \\
-				x(t)
-			\end{pmatrix} \in \mathbb{R}^m.
-		\end{equation*}
-		
-		Предположим, что векторные поля $\textbf{f}_i$ лежат в известном параметрическом классе, т.е. $\textbf{f}_i = \textbf{f}_{\Theta_i}$. Наконец наложим на тректории независимый шум с нулевым средним и ограниченной дисперсией
-		
-		\begin{gather*}
-			\textbf{z}(t) \to \textbf{z}(t) + \boldsymbol{\epsilon}, \\
-			\text{s.t. } \mathbb{E}[\boldsymbol{\epsilon}] = 0, \, \mathbb{D}[\boldsymbol{\epsilon}] < +\infty.
-		\end{gather*}
-		
-	\end{frame}	
-	
-	\begin{frame}{Полная модель порождения данных}
-		
-		Предлагаются три типа связи параметров $\Theta_i$ с дин. системами $\textbf{f}_i$ в рамках класса:
-		
-		\begin{enumerate}
-			\item Дин. система класса имеет фиксированные параметры $\Theta_i = $ const. 
-			
-			\item Класс имеет \emph{априорное} распределение на параметры $\Theta_i \sim p_i(\Theta)$ (генеративная модель).
-		\end{enumerate}
-		
-		Добавив априорное распределение на классы $ C \sim \text{Cat}(C) $, мы полностью определим вероятностную модель задачи.
-		
-		\begin{enumerate}
-			\setcounter{enumi}{2}
-			\item Каждый параметр $\Theta$ задаёт распределение на класс $C \sim p(C | \Theta)$ (дискриминативная модель).
-		\end{enumerate}
-		
-		\begin{figure}
-			\centering
-			\includegraphics[width=0.49\textwidth,keepaspectratio]{img/bayes_graph_gen.jpg}
-			\includegraphics[width=0.49\textwidth,keepaspectratio]{img/bayes_graph_discr.png}
-			\caption{Графические модели для 2 и 3 типов связи}
-		\end{figure}
-		
-	\end{frame}
-
-	\begin{frame}{Алгоритмы классификации временных рядов}
-		
-		Для каждого типа связи:
-		
-		\begin{enumerate}
-			\item На обучающей выборке получить ML оценки параметров класса $\hat{\Theta}_i$. Для тестовой траектории воспользоваться \emph{байесовским решающим правилом}:
-			
-			\begin{equation*}
-				C_{\text{test}} = \underset{C_i}{\arg \max} \, p(C_i) p\big( \textbf{z}_{\text{test}}(t) | \hat{\Theta}_i \big)
-			\end{equation*} 	
-			
-			\item Байесовский вывод
-			
-			\begin{equation*}
-				p \big(C = C_i | \textbf{z}_{\text{test}}(t), \textbf{z}_{\text{train}}(t) \big) = \int p \big( C = C_i | \Theta, \textbf{z}_{\text{test}}(t) \big) p_i \big( \Theta | \textbf{z}_{\text{train}}(t) \big) d\Theta
-			\end{equation*}
-			
-			\item По каждой обучающей траектории получить ML оценку порождающей дин.системы $\hat{\Theta}$. Далее, на полученных оценках обучить классификатор в пространстве параметров $p(C | \Theta)$. Для тестовой траектории снова получаем оценку $\hat{\Theta}_{\text{test}}$, пользуемся классификатором:
-			
-			\begin{equation*}
-				C_{\text{test}} = \underset{C_i}{\arg \max} \, p(C_i | \hat{\Theta}_{\text{test}})
-			\end{equation*}
-		\end{enumerate}
-		
-	\end{frame}	
-	
-	\begin{frame}{Постановка эксперимента}
-		
-		\begin{block}{Цель эксперимента}
-			Восстановить фазовые траектории и скрытые дин. системы по обучающей выборке, сравнить качество классификации тремя предложенными методами + c моделями RNN, CNN. Оценить применимость предложенных методов.
-		\end{block}
-		
-		\begin{exampleblock}{Данные}
-			Акселерометрия движений человека для разных типов активностей (50 Гц, 6 классов), датасет \href{https://github.com/mmalekzadeh/motion-sense}{MotionSense}.
-		\end{exampleblock}
+		 \begin{equation}\label{eq:lat_dyn}
+		 	\begin{cases}
+		 		\frac{d}{dt} \bz(t) = f(\bz), \\
+		 		\bz(0) = \bz_0,
+		 	\end{cases}
+		 \end{equation}
+		 
+		assuming we have labeled sample series $\mathcal{D} = \{ (\tbx_1(t_i), y_1), \ldots, (\tbx_N(t_i), y_N) \}$.
 		
 		\begin{figure}[h]
-			\centering
-			\includegraphics[width=0.5\textwidth]{img/motionsense}
-			\caption{Примеры временных рядов в MotionSense}
+			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/dws_example}
+			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/jog_example}
+			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/stand_example}
+			\caption*{Time series from different systems}
 		\end{figure}
 		
-	\end{frame}	
+	\end{frame}% say tilde means noised
 	
-	\begin{frame}{Фазовые траектории}
-		
-		Временные ряды активности "upstairs" и восстановленные фазовые траектории.
-		
-		\begin{figure}
-			\centering
-			\includegraphics[width=0.4\textwidth]{img/series_ups.png}
-			\includegraphics[width=0.59\textwidth]{img/phase_ups.png}
-		\end{figure}
-		
-	\end{frame}	
-	
-	\begin{frame}{Классификация в пространстве параметров}
-		
-		Классы активности "jog" и "stand". Для каждой траектории обучалась линейная модель. В пространстве параметров построен kNN-классификатор. Приведены метрики качества для каждого класса (тестовая выборка) и визуализация t-SNE обученных моделей.
-		
-		\begin{table}[]
-			%\caption{Качество классификации в пространстве параметров}
-			\begin{tabular}{|c|c|}
-				\hline
-				\textbf{Label} & \textbf{Accuracy} \\ \hline
-				jog            & 0.4               \\ \hline
-				std            & 0.7               \\ \hline
-			\end{tabular}
-
-		\end{table}
-		
-		 \begin{figure}
-		 	\centering
-		 	\includegraphics[width=0.5\textwidth]{img/tsne.png}
-		 	\caption{t-SNE на параметрах обученных моделей. Perplexity $= 15$.}
-		 \end{figure}
-		
-	\end{frame}
-	
-	\begin{frame}{Байесовское решающее правило}
-		
-		Классы активности "jog" и "upstairs" с равномерным априорным расределением. Траектории поделены на train/test. NN-модели обучены на train. Тестовая траектория классифицируется по наибольшему правдоподобию у обученной модели. Приведены метрики качества для каждого класса (тестовая выборка), примеры аппроксимации реальной траектории обученными моделями.
-		
-		\begin{table}[]
-			\begin{tabular}{|c|c|}
-				\hline
-				\textbf{Label} & \textbf{Accuracy} \\ \hline
-				jog            & 0.68              \\ \hline
-				ups            & 0.32              \\ \hline
-			\end{tabular}
-		\end{table}
-		
-		\begin{figure}
-			\centering
-			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/ups_traj_approx.png}
-			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/jog_traj_approx.png}
-		\end{figure}
-		
-	\end{frame}
-	
-	\begin{frame}{Выносится на защиту}
+	\begin{frame}{"Direct" approach}
 		
 		\begin{enumerate}
-			\item Поставлена задача классификации временных рядов, порождённых скрытыми дин. системами
-			\item Предложены три вероятностные модели порождения фазовых траекторий
-			\item Для каждой модели предложен алгортим классификации новых траекторий
-			\item Поставлены вычислительные эксперименты по восстановлению параметров дин. систем и классификации 
+			\item Reconstruct diffeomorphic phase trajectories from the observed time series: Whitney or Takens embedding theorem.
+			\begin{equation*}
+				\{\tbx(t_i)\} \to \{\bz(t_i)\}
+			\end{equation*}
+			\item Learn vector fields of the systems $f_i(\bz)$ from the trajectories (NODE).
+			\begin{equation*}
+				\hat{f} = \underset{f \in \mathcal{F}}{\arg\min} \  \mathcal{L}(\{\bz(t_i)\}, f)
+			\end{equation*}
+			
+			Choose $\mathcal{L}, \mathcal{F}$ according to the prior knowledge of the system.			
+			\item Associate a test trajectory with the system that gives least deviation from the \emph{initial value problem} (IVP) (\ref{eq:lat_dyn}).
+			
+			\begin{equation*}
+				k = \underset{k \in 1 \ldots K}{\arg\min} \  \rho \big( \{\bz(t_i)\}, \text{IVP}(f_k, \bz(0)) \big)
+			\end{equation*}
 		\end{enumerate}
 		
-		В ближайшее время будут проводиться эксперименты на данных гироскопа, где должно получиться более высокое качество классификации. Будет оформлена теор. оценка на точность классификации в связи с численной ошибкой  ode-солвера. Работа оформляется для будущей публикации.
+	\end{frame}
+	
+	\begin{frame}{Approach limitations}
 		
-	\end{frame}	
+		In steps 2-3 we need to compute IVP trajectories. For regular fields $f$ and fixed $\bz(0)$ IVP has unique solution. On practice, there are several factors that induce error in computing $\text{IVP}(f, \bz(0))$.
+		
+		\begin{enumerate}
+			\item In many cases IVP has no analytic solution and \emph{numerical solvers} are used. They induce numerical error and may have stability issues.
+			\item Learned field $\hat{f}$ from step 2 is an approximation of the real $f$. It contributes to the IVP error.
+			\item We have only noisy $\bz(0)$ observation.
+			\item The dynamical system (\ref{eq:lat_dyn}) may not be an adequate time series model globally. For example, the true field is not stationary $f(\bz, t)$. But it can fairly approximates dynamics locally.
+		\end{enumerate}
+		
+	\end{frame}
+	
+	\begin{frame}{Trajectory segmenting}
+		
+		Do not rely for $\text{IVP}(f, \bz(0))$. We know full (noisy) trajectory $\{\bz(t_i)\}$. Split it into parts and solve IVP per part. We can also add parameters for $\bz(0)$ if noise is significant
+		
+		\begin{equation*}
+			\hat{f} = \underset{f \in \mathcal{F}, \{\bz^s_0\}}{\arg\min} \sum\limits_{s=0}^S  \mathcal{L}(\{\bz^s(t_i)\}, f, \bz^s_0).
+		\end{equation*}
+		
+		In terms of \emph{bias-variance tradeoff} adding $\bz_0$ parameters decrease bias but will increase variance. Trajectory segmenting also allows for \emph{parallel} trajectory processing.
+		
+		\vspace{-1.5em}		
+		\begin{figure}[h]
+			\subfloat[No segmenting]{\includegraphics[width=0.49\textwidth, keepaspectratio]{img/no_segmenting}}
+			\subfloat[With segmenting]{\includegraphics[width=0.49\textwidth, keepaspectratio]{img/segmenting}}
+		\end{figure}
+		
+	\end{frame}
+	
+	\begin{frame}{"Transition to model space" approach}
+		
+		Instead of analyzing trajectories let's analyze vector field $f$ directly. 
+		
+		\begin{enumerate}
+			\item Split trajectory on the \emph{segments} (with possibly adaptive sizes).
+			\item Assume linear field approximation is fair inside the segments
+				\begin{equation*}
+					\dot{x} = f(\bx) \approx f(\bx_0) + \left.\mathcal{I}\right|_{\bx_0} (\bx - \bx_0)
+				\end{equation*}
+			and learn it (i.e. $f(\bx_0)$ and $\left.\mathcal{I}\right|_{\bx_0}$).
+			\item Do it for every train and test trajectory. In the end we have samples of $f$ values across the phase space.
+		\end{enumerate}
+		
+		\emph{One possible} solution is then:
+		
+		\begin{enumerate}
+			\item Build global parametric approximation $\hat{f}_k, \ k \in 1 \ldots K$.
+			\item Classifier is the system with the minimum deviation of the vector field samples of the test trajectory
+				\begin{equation*}
+					k = \underset{k \in 1 \ldots K}{\arg\min} \  \rho \big( \{f(t_i)\}, \{\hat{f}_k(t_i)\} \big)
+				\end{equation*}
+		\end{enumerate}
+		
+	\end{frame}
+	
+	%\begin{frame}{Comparison with the Chen's model}
+	%	
+	%	Why can't we learn dynamics from the original series?
+	%	
+	%\end{frame}
+	
+	\begin{frame}{Experiments to justify trajectory segmenting}
+		
+		Trajectory segmenting helps to stabilize numerical solvers.
+		
+		\vspace{-1.5em}		
+		\begin{figure}[h]
+			\subfloat[No segmenting]{\includegraphics[width=0.49\textwidth, keepaspectratio]{img/solver_noseg}}
+			\subfloat[With segmenting]{\includegraphics[width=0.49\textwidth, keepaspectratio]{img/solver_seg}}
+		\end{figure}
+		
+		Trajectory segmenting is robust under noisy samples.
+		
+		\vspace{-1.5em}
+		\begin{figure}[h]
+			\subfloat[No segmenting]{\includegraphics[width=0.4\textwidth, keepaspectratio]{img/noise_noseg}}
+			\subfloat[With segmenting]{\includegraphics[width=0.4\textwidth, keepaspectratio]{img/noise_seg}}
+		\end{figure}
+		
+	\end{frame}
+	
+	%\begin{frame}{Experiment on classifying IMU}
+	%	
+	%\end{frame}
+	
+	\begin{frame}{Future work}
+		
+		\begin{enumerate}
+			\item Adaptive segmenting.
+			\item Relation to non-stationary systems and stochastic differential equations.
+			\item More deep limitations analysis.
+		\end{enumerate}
+		
+	\end{frame}
 	
 \end{document}

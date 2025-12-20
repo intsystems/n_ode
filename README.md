@@ -5,7 +5,7 @@
 ```
 .
 ├── data
-├── docs                # paper
+├── paper
 ├── experiments
 ├── LICENSE.txt
 ├── litreview.md
@@ -14,7 +14,6 @@
 ├── pyproject.toml
 ├── README.md
 ├── slides
-└── tests
 ```
 
 ## Authors

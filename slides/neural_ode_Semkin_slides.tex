@@ -95,7 +95,7 @@
 		Do not rely for $\text{IVP}(f, \bz(0))$. We know full (noisy) trajectory $\{\bz(t_i)\}$. Split it into parts and solve IVP per part. We can also add parameters for $\bz(0)$ if noise is significant
 		
 		\begin{equation*}
-			\hat{f} = \underset{f \in \mathcal{F}, \{\bz^s_0\}}{\arg\min} \sum\limits_{s=0}^S  \mathcal{L}(\{\bz^s(t_i)\}, f, \bz^s_0).
+			k = \underset{k \in 1 \ldots K}{\arg\min} \sum\limits_{s=0}^S  \rho \big( \{\bz^s(t_i)\}, \text{IVP}(f_k, \bz^s_0) \big)
 		\end{equation*}
 		
 		In terms of \emph{bias-variance tradeoff} adding $\bz_0$ parameters decrease bias but will increase variance. Trajectory segmenting also allows for \emph{parallel} trajectory processing.

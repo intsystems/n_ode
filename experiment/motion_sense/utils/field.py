@@ -1,4 +1,5 @@
 import os
+from itertools import chain
 from toolz import identity
 
 import numpy as np
@@ -6,7 +7,8 @@ import torch
 from torch import nn
 from torch import optim
 from lightning import LightningModule
-from torchdiffeq import odeint # odeint_adjoint as odeint
+# from torchdiffeq import odeint
+from torchdiffeq import odeint_adjoint as odeint
 from filterpy.kalman import UnscentedKalmanFilter, MerweScaledSigmaPoints
 
 import plotly.graph_objects as go
@@ -56,6 +58,7 @@ class FieldLitModule(LightningModule):
         self.traj_smooth_loss = SmoothedTrajectoryLoss(kalman)
 
         self.save_hyperparameters()
+        self.automatic_optimization = False
     
     @torch.no_grad
     def _kalman_f(self, x, dt):
@@ -67,15 +70,22 @@ class FieldLitModule(LightningModule):
         )[-1].numpy()
     
     def training_step(self, batch, batch_idx):
+        for opt in self.optimizers():
+            opt.zero_grad()
+
         x0 = batch[:, :self.d]
         x_next = batch[:, self.d:]
         x_next_pred = odeint(
             self.field, x0, torch.tensor([0., self.dt]),
             options={"dtype": torch.float32}
         )[-1]
-        loss = nn.functional.l1_loss(x_next_pred, x_next)
-        self.log("Train/l1_loss", loss, on_step=True, on_epoch=True)
-        return loss
+        loss = nn.functional.mse_loss(x_next_pred, x_next)
+        self.log("Train/loss", loss, on_step=True, on_epoch=True)
+
+        self.manual_backward(loss)
+        for opt in self.optimizers():
+            opt.step()
+        # return loss
     
     def validation_step(self, batch, batch_idx):
         x0 = batch[:, :self.d]
@@ -84,8 +94,8 @@ class FieldLitModule(LightningModule):
             self.field, x0, torch.tensor([0., self.dt]),
             options={"dtype": torch.float32}
         )[-1]
-        loss = nn.functional.l1_loss(x_next_pred, x_next)
-        self.log("Val/l1_loss", loss, on_epoch=True)
+        loss = nn.functional.mse_loss(x_next_pred, x_next)
+        self.log("Val/loss", loss, on_epoch=True)
 
         self.traj_smooth_loss.update(x0)
 
@@ -119,4 +129,13 @@ class FieldLitModule(LightningModule):
             )
     
     def configure_optimizers(self):
-        return optim.Adam(self.field.parameters(), lr=1e-4, weight_decay=1e-5)
+        return [
+            optim.Adam(
+                chain(self.field.nonlinear_add.parameters(), [self.field.nonlinear_add_scale]),
+                lr=1e-5, weight_decay=1e-5
+            ),
+            optim.Adam(
+                self.field.A.parameters(),
+                lr=1e-5
+            )
+        ]

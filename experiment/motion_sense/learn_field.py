@@ -18,7 +18,6 @@ from lightning.pytorch.loggers import MLFlowLogger
 from experiment.motion_sense.utils.dataset import TrajectoryDataset
 from experiment.motion_sense.utils.field import FieldLitModule
 
-
 import mlflow
 
 BATCH_SIZE = 32
@@ -69,7 +68,7 @@ if __name__ == "__main__":
     )
     checkpointing = ModelCheckpoint(
         os.path.join(config.results_dir, str(args.subj), args.act),
-        filename="best", monitor="Val/l1_loss", mode="min",
+        filename="best", monitor="Val/loss", mode="min",
         enable_version_counter=False
     )
     trainer = Trainer(

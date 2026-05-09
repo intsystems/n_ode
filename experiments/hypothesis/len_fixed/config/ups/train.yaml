@@ -1,5 +1,0 @@
-batch_size: 16
-trainer:
-  devices: 2
-model_checkpoint:
-  every_n_train_steps: 6

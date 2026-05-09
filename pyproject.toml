@@ -1,47 +1,34 @@
-[tool.poetry]
-name = "node"
+[project]
+name = "n-ode"
 version = "0.1.0"
-description = "Neural Ode Classification"
-authors = ["sem-k32"]
+description = "Add your description here"
 readme = "README.md"
-packages = [{include = "node"}, {include = "hypothesis", from="experiments"}]
+requires-python = ">=3.12"
+dependencies = [
+    "filterpy>=1.4.5",
+    "ipykernel>=7.2.0",
+    "lightning>=2.6.1",
+    "mlflow>=3.0",
+    "more-itertools>=11.0.1",
+    "omegaconf>=2.3.0",
+    "pandas<3.0",
+    "pipe>=2.2",
+    "plotly>=6.6.0",
+    "rich>=14.3.3",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
+    "snakemake>=9.19.0",
+    "toolz>=1.1.0",
+    "torchdiffeq>=0.2.5",
+    "torchmetrics>=1.0.3",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-numpy = "^2.1.2"
-pandas = "^2.2.3"
-matplotlib = "^3.9.2"
-torch = "^2.5.0"
-ipykernel = "^6.29.5"
-scipy = "^1.14.1"
-scikit-learn = "^1.5.2"
-tensorboard = "^2.18.0"
-torchdyn = "^1.0.6"
-pyro-ppl = "^1.9.1"
-seaborn = "^0.13.2"
-graphviz = "^0.20.3"
-omegaconf = "^2.3.0"
-lightning = "^2.5.0.post0"
-torchdiffeq = "^0.2.5"
-torchmetrics = "^1.6.1"
-pipe = "^2.2"
-wandb = "^0.19.6"
-snakemake = "^9.5.1"
-rich = "^14.0.0"
-xgboost = "^3.0.2"
-plotly = "^6.2.0"
-optuna = "^4.5.0"
-optuna-integration = "^4.5.0"
-sqlalchemy = "^2.0.43"
-psycopg2-binary = "^2.9.10"
-optuna-dashboard = "^0.19.0"
+[tool.uv.sources]
+torch = { index = "pytorch" }
 
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
 
-[tool.poetry.group.remote.dependencies]
-ansible = "^11.6.0"
-ansible-dev-tools = "^25.5.2"
-jmespath = "^1.0.1"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.setuptools]
+packages = ["experiment"]

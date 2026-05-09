@@ -481,3 +481,9 @@ TSWLatexianTemp*
 
 .snakemake
 .ansible
+data/
+lightning_logs
+mlruns
+mlflow.db
+results
+ssh_utils.sh

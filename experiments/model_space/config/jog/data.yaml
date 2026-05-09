@@ -1,4 +1,0 @@
-data:
-  act: jog
-  max_len: 200
-  data_type: rotationRate

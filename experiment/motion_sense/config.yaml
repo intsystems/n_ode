@@ -1,0 +1,12 @@
+tracking_uri: sqlite:///mlflow.db
+data_dir: /Users/sem-k32/10_sem/n_ode/data
+results_dir: /Users/sem-k32/10_sem/n_ode/results
+activity_codes:
+  dws: [1, 2, 11]
+  jog: [9, 16]
+  ups: [3, 4, 12]
+  wlk: [7, 8, 15]
+  std: [6, 14]
+  sit: [5, 13]
+dt: 0.02  # mu = 50 Hz
+data_types: ["rotationRate", "userAcceleration"]

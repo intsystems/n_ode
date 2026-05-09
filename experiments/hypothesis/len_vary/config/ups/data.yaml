@@ -1,6 +1,0 @@
-data:
-  act: ups
-  max_len: 20
-  data_type: rotationRate
-
-seed: 42

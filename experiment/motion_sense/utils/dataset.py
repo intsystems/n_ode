@@ -1,3 +1,7 @@
+from itertools import chain
+from toolz import pipe
+from toolz.curried import map as map_c
+
 import torch
 from torch.utils.data import Dataset
 
@@ -5,7 +9,10 @@ from experiment.motion_sense.utils.raw_data_loading import create_time_series, s
 
 
 class TrajectoryDataset(Dataset):
-    def __init__(self, data_dir: str, data_types: list[str], act, act_code, subj):
+    def __init__(
+        self, data_dir: str, data_types: list[str], state_names: list[str],
+        act, act_code, subj, window_size: int = 16
+    ):
         dt_columns = set_data_types(data_types)
         act_labels = [act]
         trial_codes = [[act_code]]
@@ -13,18 +20,14 @@ class TrajectoryDataset(Dataset):
             data_dir, dt_columns, act_labels, trial_codes, mode="raw"
         )
         ts_df = ts_df[ts_df["id"].isin([subj])]
-        cols = [f"rotationRate.{axis}" for axis in "xyz"] + \
-            [f"userAcceleration.{axis}" for axis in "xyz"]
-        ts_df = ts_df[cols]
+        ts_df = ts_df[state_names]
 
-        start_point = torch.from_numpy(ts_df.to_numpy())[:-1]
-        next_point = torch.from_numpy(ts_df.shift(-1).to_numpy())[:-1]
-        self.start_next_point = torch.concat((start_point, next_point), dim=1)
-        # trajectory dim
-        self.d = len(cols)
+        self.traj = torch.from_numpy(ts_df.to_numpy())
+        self.window_size = window_size
+        self.d = len(state_names)
 
     def __getitem__(self, index):
-        return self.start_next_point[index]
+        return self.traj[index : index + self.window_size]
 
     def __len__(self):
-        return self.start_next_point.shape[0]
+        return self.traj.shape[0] - self.window_size + 1

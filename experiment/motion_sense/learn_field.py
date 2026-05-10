@@ -6,6 +6,7 @@ from itertools import chain
 from toolz import pipe
 from toolz.curried import map as map_c
 
+import numpy as np
 import pandas as pd
 
 import torch
@@ -21,7 +22,8 @@ from experiment.motion_sense.utils.field import FieldLitModule
 import mlflow
 
 BATCH_SIZE = 32
-NOISE_SIGMA = 1e-2
+NUM_WORKERS = 2
+WINDOW_SIZE = 16
 
 
 if __name__ == "__main__":
@@ -31,33 +33,38 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = OmegaConf.load("experiment/motion_sense/config.yaml")
 
-    train_dataset = [
+    train_datasets = [
         TrajectoryDataset(
-            config.data_dir, config.data_types, args.act, train_act_code, args.subj
+            config.data_dir, config.data_types, config.state_names,
+            args.act, train_act_code, args.subj,
+            window_size=WINDOW_SIZE
         )
         for train_act_code in config.activity_codes[args.act][:-1]
     ]
-    train_dataset = ConcatDataset(train_dataset)
-    train_loader = DataLoader(train_dataset, BATCH_SIZE, shuffle=True)
     test_dataset = TrajectoryDataset(
-        config.data_dir, config.data_types, args.act,
-        config.activity_codes[args.act][-1], args.subj
+        config.data_dir, config.data_types, config.state_names,
+        args.act, config.activity_codes[args.act][-1], args.subj,
+        window_size=WINDOW_SIZE
     )
+
+    # per-channel normalization: pool stats over training trials, apply to all datasets
+    all_train_traj = torch.cat([ds.traj for ds in train_datasets])
+    traj_mean = all_train_traj.mean(0)
+    traj_std = all_train_traj.std(0)
+
+    train_dataset = ConcatDataset(train_datasets)
+    train_loader = DataLoader(train_dataset, BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
     test_loader = DataLoader(test_dataset, BATCH_SIZE, shuffle=False)
 
-    state_noise_sigma = pd.read_csv(
+    noise_sigma = pd.read_csv(
         os.path.join(config.results_dir, str(args.subj), args.act, "traj_std.csv"),
         index_col=0
     ).to_numpy().flatten()
-    state_dim = test_dataset[0].shape[0] // 2
-    state_names = pipe(
-        config.data_types,
-        map_c(lambda name: [name + '.' + suffix for suffix in ['x', 'y', 'z']]),
-        chain.from_iterable,
-        list
-    )
+    state_dim = test_dataset.d
+    STATE_NOISE_SIGMA = np.full((state_dim, ), 1.)
     field_module = FieldLitModule(
-        state_dim, config.dt, state_noise_sigma, NOISE_SIGMA, state_names
+        state_dim, config.dt, STATE_NOISE_SIGMA, noise_sigma, config.state_names,
+        traj_mean=traj_mean, traj_std=traj_std
     )
 
     logger = MLFlowLogger(
@@ -73,6 +80,7 @@ if __name__ == "__main__":
     )
     trainer = Trainer(
         accelerator="cpu",
+        # devices=4,
         callbacks=[checkpointing],
         logger=logger,
         max_epochs=3,

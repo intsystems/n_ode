@@ -1,6 +1,9 @@
 import argparse
 import os
 from pathlib import Path
+from itertools import chain
+from toolz import pipe
+from toolz.curried import map as map_c
 from omegaconf import OmegaConf
 
 import torch
@@ -27,8 +30,7 @@ if __name__ == "__main__":
     )
     ts_df = ts_df[ts_df["id"].isin([args.subj])]
 
-    cols = [f"rotationRate.{axis}" for axis in "xyz"] + \
-        [f"userAcceleration.{axis}" for axis in "xyz"]
+    cols = config.state_names
     noise = []
     for _, group in ts_df.groupby("trial"):
         group = group[cols]
@@ -37,7 +39,6 @@ if __name__ == "__main__":
         )
     noise = pd.concat(noise)
     noise_sigma = noise.std(axis=0)
-    pd.DataFrame().std()
 
     save_dir = Path(os.path.join(config.results_dir, str(args.subj), args.act))
     save_dir.mkdir(parents=True, exist_ok=True)

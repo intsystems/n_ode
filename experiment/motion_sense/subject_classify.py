@@ -25,7 +25,6 @@ from rich.progress import track
 import mlflow
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("subj", type=int)
@@ -42,48 +41,60 @@ if __name__ == "__main__":
 
     act_fields_adapters = {}
     test_trajectories = {}
-    for act_dir in Path("fields").iterdir():
+    subj_dir = Path("results") / str(args.subj)
+    for act_dir in subj_dir.iterdir():
+        if not act_dir.is_dir():
+            continue
         act = act_dir.stem
-        subj_field_path = act_dir / f"{args.subj}/best.ckpt"
-        if subj_field_path.exists():
-            act_fields_adapters[act] = FieldLitModule.load_from_checkpoint(
-                subj_field_path, weights_only=False
-            )
 
-            test_dataset = TrajectoryDataset(
-                config.data_dir, config.data_types, act,
-                config.activity_codes[act][-1], args.subj
-            )
-            state_dim = test_dataset[0].shape[0] // 2
-            test_trajectories[act] = torch.stack(
-                [test_dataset[i][:state_dim] for i in range(len(test_dataset))]
-            )
-    
+        test_dataset = TrajectoryDataset(
+            config.data_dir, config.data_types, config.state_names, act,
+            config.activity_codes[act][-1], args.subj
+        )
+        test_trajectories[act] = test_dataset.traj
+
+        field_path = act_dir / "best.ckpt"
+        act_fields_adapters[act] = FieldLitModule.load_from_checkpoint(
+            field_path, weights_only=False,
+            traj_mean=torch.zeros((test_dataset.d, ), dtype=torch.float32),
+            traj_std=torch.zeros((test_dataset.d, ), dtype=torch.float32)
+        )
+
     # perform classification
     cls_results = []
     for target_act, test_traj in track(list(test_trajectories.items()), "Target act"):
+        test_traj_np = test_traj.numpy()
         fig = go.Figure()
         t_mesh = np.arange(test_traj.shape[0]) * config.dt
         fig.add_trace(go.Scatter(
-            x=t_mesh, 
-            y=test_traj[:, TRAJ_COMPONENT_TO_VIZ],
+            x=t_mesh,
+            y=test_traj_np[:, TRAJ_COMPONENT_TO_VIZ],
             mode='lines',
             name="traj"
         ))
 
         for act, field_adapter in track(list(act_fields_adapters.items()), "Pred act", transient=True):
+            field_adapter.eval()
+            field_adapter.traj_smooth_loss.max_len = None
+            mean = field_adapter.traj_mean.cpu()
+            std = field_adapter.traj_std.cpu()
+            test_traj_norm = ((test_traj - mean) / std).to(torch.float32)
+
             field_adapter.traj_smooth_loss.reset()
-            field_adapter.traj_smooth_loss.update(test_traj)
-            loss, _, traj_smooth = field_adapter.traj_smooth_loss.compute()
-            cls_results.append((target_act, act, loss.item()))
+            field_adapter.traj_smooth_loss.update(test_traj_norm)
+            _, _, traj_smooth_norm = field_adapter.traj_smooth_loss.compute()
+
+            traj_smooth = traj_smooth_norm * std.numpy() + mean.numpy()
+            loss = float(np.sqrt(((traj_smooth - test_traj_np) ** 2).sum() / test_traj.shape[0]))
+            cls_results.append((target_act, act, loss))
 
             fig.add_trace(go.Scatter(
-                x=t_mesh, 
+                x=t_mesh,
                 y=traj_smooth[:, TRAJ_COMPONENT_TO_VIZ],
                 mode='lines',
                 name=f"{act}_smooth"
             ))
-        
+
         state_name = field_adapter.state_names[TRAJ_COMPONENT_TO_VIZ]
         fig.update_layout(
             xaxis_title="t", yaxis_title=state_name
@@ -95,7 +106,7 @@ if __name__ == "__main__":
     accuracy = (cls_results.loc[argmin_indx]["act"] == cls_results.loc[argmin_indx]["act_true"]).mean()
     mlflow.log_metric("accuracy", accuracy)
 
-    save_dir = Path(os.path.join(config.resutls_dir, str(args.subj)))
-    cls_results[argmin_indx].to_csv(save_dir / "cls.csv", index=False)
+    save_dir = Path(os.path.join(config.results_dir, str(args.subj)))
+    cls_results.to_csv(save_dir / "cls.csv", index=False)
 
     print(accuracy)

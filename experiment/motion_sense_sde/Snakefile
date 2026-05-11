@@ -1,0 +1,50 @@
+configfile: "experiment/motion_sense_sde/config.yaml"
+SUBJS = [1]
+ACTS = ["jog", "wlk"] # config["activity_codes"]
+
+for subj in SUBJS:
+    for act in ACTS:
+        rule:
+            name: f"learn_field_{act}_{subj}"
+            output:
+                os.path.join(config["results_dir"], str(subj), act, "best.ckpt")
+            params:
+                act=act, subj=subj
+            shell: """
+                python experiment/motion_sense_sde/learn_field.py {params.act} {params.subj}
+            """
+
+        rule:
+            name: f"estimate_R_{act}_{subj}"
+            input:
+                os.path.join(config["results_dir"], str(subj), act, "best.ckpt")
+            output:
+                os.path.join(config["results_dir"], str(subj), act, "R_diag.csv")
+            params:
+                act=act, subj=subj
+            shell: """
+                python experiment/motion_sense_sde/estimate_r.py {params.act} {params.subj}
+            """
+
+    rule:
+        name: f"subj_{subj}_classify"
+        input:
+            [
+                os.path.join(config["results_dir"], str(subj), act, "best.ckpt")
+                for act in ACTS
+            ],
+            [
+                os.path.join(config["results_dir"], str(subj), act, "R_diag.csv")
+                for act in ACTS
+            ]
+        output:
+            os.path.join(config["results_dir"], str(subj), "cls.csv")
+        params:
+            subj=subj
+        shell: """
+            python experiment/motion_sense_sde/subject_classify.py {params.subj}
+        """
+
+rule all:
+    input:
+        [os.path.join(config["results_dir"], str(subj), "cls.csv") for subj in SUBJS]

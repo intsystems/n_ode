@@ -44,18 +44,19 @@ if __name__ == "__main__":
         ckpt, weights_only=False,
         traj_mean=torch.zeros((d,), dtype=torch.float32),
         traj_std=torch.zeros((d,), dtype=torch.float32),
-    ).eval()
+    ).to("cpu").eval()
     dt = field_mod.dt
     std = field_mod.traj_std.numpy()
 
     # observations in the normalized state space the field was trained in
-    TRAJ_TRUNCATION = 100
+    TRAJ_TRUNCATION = 200
     y = ((test_dataset.traj - field_mod.traj_mean) / field_mod.traj_std).numpy()
-    y = y[:TRAJ_TRUNCATION]
+    y = y[300:300+TRAJ_TRUNCATION]
 
     # Q from the learned diffusion; H = I (state == observation)
     sigma = field_mod.field.brownian_sigma.detach().numpy()
     Q = np.diag(sigma ** 2) * dt
+    print("Q", np.diag(Q))
 
     @torch.no_grad()
     def fx(x, dt_):
@@ -92,9 +93,10 @@ if __name__ == "__main__":
             ukf.update(z)
         return float(nll)
 
-    log_r0 = np.log(np.full(d, 1e-2))
+    log_r0 = np.log(np.full(d, 1e-3))
     with console.status("Learning R"):
         res = minimize(neg_loglik, log_r0, method="L-BFGS-B")
+    print("log res", res.x)
     R_diag_norm = np.exp(res.x)
     R_diag_raw = R_diag_norm * std ** 2
 

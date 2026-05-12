@@ -1,6 +1,6 @@
 tracking_uri: sqlite:///mlflow.db
-data_dir: /Users/sem-k32/10_sem/n_ode/data
-results_dir: /Users/sem-k32/10_sem/n_ode/results_sde
+data_dir: /home/semkin@ap-team.ru/n_ode/data
+results_dir: /home/semkin@ap-team.ru/n_ode/results_sde
 activity_codes:
   dws: [1, 2, 11]
   jog: [9, 16]

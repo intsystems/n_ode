@@ -28,58 +28,60 @@ import mlflow
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("subj", type=int)
+    parser.add_argument("act", type=str)
     args = parser.parse_args()
     config = OmegaConf.load("experiment/motion_sense_sde/config.yaml")
-    TRAJ_COMPONENT_TO_VIZ = 2
 
     mlflow.set_tracking_uri(config.tracking_uri)
     mlflow.set_experiment("motion_sense_sde")
     mlflow.start_run(
-        run_name="subj_classifiy",
-        tags={"subj": args.subj}
+        run_name="inter_subj_classifiy",
+        tags={"act": args.act}
     )
 
     act_fields_adapters = {}
     R_diags = {}
     test_trajectories = {}
-    subj_dir = Path(config.results_dir) / str(args.subj)
-    for act_dir in subj_dir.iterdir():
-        if not act_dir.is_dir():
+    for subj_dir in Path(config.results_dir).iterdir():
+        if not subj_dir.is_dir():
             continue
-        act = act_dir.stem
+        subj = int(subj_dir.stem)
+        act_dir = subj_dir / args.act
 
         test_dataset = TrajectoryDataset(
-            config.data_dir, config.data_types, config.state_names, act,
-            config.activity_codes[act][-1], args.subj
+            config.data_dir, config.data_types, config.state_names, args.act,
+            config.activity_codes[args.act][-1], subj
         )
-        test_trajectories[act] = test_dataset.traj
+        test_trajectories[subj] = test_dataset.traj
 
         field_path = act_dir / "best.ckpt"
-        act_fields_adapters[act] = FieldLitModule.load_from_checkpoint(
+        act_fields_adapters[subj] = FieldLitModule.load_from_checkpoint(
             field_path, weights_only=False,
             traj_mean=torch.zeros((test_dataset.d, ), dtype=torch.float32),
             traj_std=torch.zeros((test_dataset.d, ), dtype=torch.float32)
-        )
-        R_diags[act] = pd.read_csv(
+        ).to("cpu").eval()
+        R_diags[subj] = pd.read_csv(
             act_dir / "R_diag.csv", index_col=0
         )["R_norm"].to_numpy()
 
     # perform classification
     cls_results = []
-    for target_act, test_traj in track(list(test_trajectories.items()), "Target act"):
+    for target_subj, test_traj in track(list(test_trajectories.items()), "Target subj"):
         test_traj_np = test_traj.numpy()
-        fig = go.Figure()
         t_mesh = np.arange(test_traj.shape[0]) * config.dt
-        fig.add_trace(go.Scatter(
-            x=t_mesh,
-            y=test_traj_np[:, TRAJ_COMPONENT_TO_VIZ],
-            mode='lines',
-            name="traj"
-        ))
 
-        for act, field_adapter in track(list(act_fields_adapters.items()), "Pred act", transient=True):
-            field_adapter.eval()
+        components_fig = []
+        for i in range(test_traj_np.shape[1]):
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=t_mesh,
+                y=test_traj_np[:, i],
+                mode='lines',
+                name=f"subj_{target_subj}_orig"
+            ))
+            components_fig.append(fig)
+
+        for subj, field_adapter in track(list(act_fields_adapters.items()), "Pred subj", transient=True):
             mean = field_adapter.traj_mean.cpu()
             std = field_adapter.traj_std.cpu()
             test_traj_norm = ((test_traj - mean) / std).to(torch.float32).numpy()
@@ -97,7 +99,7 @@ if __name__ == "__main__":
             )
             sigma = field_adapter.field.brownian_sigma.detach().numpy()
             ukf.Q = np.diag(sigma ** 2) * field_adapter.dt
-            ukf.R = np.diag(R_diags[act])
+            ukf.R = np.diag(R_diags[subj])
             ukf.x = test_traj_norm[0].copy()
             ukf.P = ukf.R.copy()
 
@@ -107,27 +109,30 @@ if __name__ == "__main__":
 
             traj_smooth = traj_smooth_norm * std.numpy() + mean.numpy()
             loss = float(np.sqrt(((traj_smooth - test_traj_np) ** 2).sum() / test_traj.shape[0]))
-            cls_results.append((target_act, act, loss))
+            cls_results.append((target_subj, subj, loss))
 
-            fig.add_trace(go.Scatter(
-                x=t_mesh,
-                y=traj_smooth[:, TRAJ_COMPONENT_TO_VIZ],
-                mode='lines',
-                name=f"{act}_smooth"
-            ))
+            for i, fig in enumerate(components_fig):
+                fig.add_trace(go.Scatter(
+                    x=t_mesh,
+                    y=traj_smooth[:, i],
+                    mode='lines',
+                    name=f"subj_{subj}_smooth"
+                ))
 
-        state_name = field_adapter.state_names[TRAJ_COMPONENT_TO_VIZ]
-        fig.update_layout(
-            xaxis_title="t", yaxis_title=state_name
-        )
-        mlflow.log_figure(fig, f"{target_act}.html")
+        for i, fig in enumerate(components_fig):
+            state_name = field_adapter.state_names[i]
+            fig.update_layout(
+                xaxis_title="t", yaxis_title=state_name
+            )
+            mlflow.log_figure(fig, f"target_subj_{target_subj}/subj_{subj}_{state_name}.html")
 
-    cls_results = pd.DataFrame(cls_results, columns=["act_true", "act", "loss"])
-    argmin_indx = cls_results.groupby("act_true")["loss"].idxmin()
-    accuracy = (cls_results.loc[argmin_indx]["act"] == cls_results.loc[argmin_indx]["act_true"]).mean()
+    cls_results = pd.DataFrame(cls_results, columns=["subj_true", "subj", "loss"])
+    argmin_indx = cls_results.groupby("subj_true")["loss"].idxmin()
+    accuracy = (cls_results.loc[argmin_indx]["subj"] == cls_results.loc[argmin_indx]["subj_true"]).mean()
     mlflow.log_metric("accuracy", accuracy)
 
-    save_dir = Path(os.path.join(config.results_dir, str(args.subj)))
-    cls_results.to_csv(save_dir / "cls.csv", index=False)
+    save_dir = Path(config.results_dir)
+    cls_results.to_csv(save_dir / f"{args.act}_inter.csv", index=False)
+    mlflow.log_table(cls_results, "cls_results.json")
 
     print("Accuracy =", accuracy)

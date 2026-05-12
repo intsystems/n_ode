@@ -17,14 +17,16 @@ class SDEField(nn.Module):
     def __init__(self, d: int):
         super().__init__()
 
-        self.A = nn.Linear(d, d, bias=False)
+        # self.A = nn.Linear(d, d, bias=False)
+        self.A = nn.Linear(d, d)
         self.A.weight = nn.Parameter(1. * torch.randn_like(self.A.weight))
         self.nonlinear_add = nn.Sequential(
-            nn.BatchNorm1d(d), nn.Linear(d, d), nn.ReLU(),
-            nn.BatchNorm1d(d), nn.Linear(d, d), nn.ReLU(),
-            nn.BatchNorm1d(d), nn.Linear(d, d), nn.ReLU(),
-            nn.BatchNorm1d(d), nn.Linear(d, d), nn.ReLU(),
-            nn.BatchNorm1d(d), nn.Linear(d, d)
+            nn.Linear(d, d), nn.ReLU(),
+            nn.Dropout(0.1), nn.Linear(d, d), nn.ReLU(),
+            nn.Linear(d, d), nn.ReLU(),
+            nn.Dropout(0.1), nn.Linear(d, d), nn.ReLU(),
+            nn.Linear(d, d), nn.ReLU(),
+            nn.Linear(d, d), nn.Tanh()
         )
         self.brownian_sigma = nn.Parameter(
             1e-1 * torch.randn((d, ))

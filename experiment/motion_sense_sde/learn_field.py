@@ -19,7 +19,7 @@ from lightning.pytorch.loggers import MLFlowLogger
 from experiment.motion_sense_sde.utils.dataset import TrajectoryDataset
 from experiment.motion_sense_sde.utils.field import FieldLitModule
 
-BATCH_SIZE = 32
+BATCH_SIZE = 1024
 NUM_WORKERS = 2
 WINDOW_SIZE = 16
 
@@ -72,12 +72,12 @@ if __name__ == "__main__":
         enable_version_counter=False
     )
     trainer = Trainer(
-        accelerator="cpu",
+        accelerator="auto",
         # devices=4,
         callbacks=[checkpointing],
         logger=logger,
-        max_epochs=1,
-        log_every_n_steps=20
+        max_epochs=50,
+        log_every_n_steps=2
     )
     trainer.fit(
         field_module, train_loader, test_loader

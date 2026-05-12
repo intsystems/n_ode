@@ -1,5 +1,5 @@
 configfile: "experiment/motion_sense_sde/config.yaml"
-SUBJS = [1]
+SUBJS = [0, 18]
 ACTS = ["jog", "wlk"] # config["activity_codes"]
 
 for subj in SUBJS:
@@ -27,7 +27,7 @@ for subj in SUBJS:
             """
 
     rule:
-        name: f"subj_{subj}_classify"
+        name: f"intra_subj_{subj}_classify"
         input:
             [
                 os.path.join(config["results_dir"], str(subj), act, "best.ckpt")
@@ -42,9 +42,30 @@ for subj in SUBJS:
         params:
             subj=subj
         shell: """
-            python experiment/motion_sense_sde/subject_classify.py {params.subj}
+            python experiment/motion_sense_sde/intra_subject_classify.py {params.subj}
+        """
+
+for act in ACTS:
+    rule:
+        name: f"inter_subj_{act}_classify"
+        input:
+            [
+                os.path.join(config["results_dir"], str(subj), act, "best.ckpt")
+                for subj in SUBJS
+            ],
+            [
+                os.path.join(config["results_dir"], str(subj), act, "R_diag.csv")
+                for subj in SUBJS
+            ]
+        output:
+            os.path.join(config["results_dir"], f"{act}_inter.csv")
+        params:
+            act=act
+        shell: """
+            python experiment/motion_sense_sde/inter_subj_classify.py {params.act}
         """
 
 rule all:
     input:
-        [os.path.join(config["results_dir"], str(subj), "cls.csv") for subj in SUBJS]
+        [os.path.join(config["results_dir"], str(subj), "cls.csv") for subj in SUBJS],
+        [os.path.join(config["results_dir"], f"{act}_inter.csv") for act in ACTS]

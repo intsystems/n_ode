@@ -1,14 +1,8 @@
-import argparse
-import os
-from pathlib import Path
 from omegaconf import OmegaConf
-from itertools import chain
-from toolz import pipe, identity
-from toolz.curried import map as map_c
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from toolz import identity
+from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
-import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -17,8 +11,8 @@ from lightning.pytorch import seed_everything
 from filterpy.kalman import UnscentedKalmanFilter, MerweScaledSigmaPoints
 from sklearn.metrics import accuracy_score
 
-import plotly.graph_objects as go
 from rich.progress import track
+import mlflow
 
 from fields import LorenzField, RosslerField, ChuaField
 
@@ -60,6 +54,12 @@ if __name__ == "__main__":
     seed_everything(SEED)
     pool = ProcessPoolExecutor(WOKRERS)
 
+    mlflow.set_tracking_uri(config.tracking_uri)
+    mlflow.set_experiment("chaotic_systems")
+    mlflow.start_run(
+        run_name="kalman_classifiy",
+    )
+
     y_true = []
     y_pred = []
     t_mesh = torch.arange(TRAJ_LEN) * dt
@@ -91,4 +91,8 @@ if __name__ == "__main__":
 
     y_true = np.concat(y_true)
     y_pred = np.concat(y_pred)
-    print("Accuracy", accuracy_score(y_true, y_pred))
+    acc =  accuracy_score(y_true, y_pred)
+    mlflow.log_metric("accuracy", acc)
+    print("Accuracy", acc)
+
+    pool.shutdown()

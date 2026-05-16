@@ -1,0 +1,11 @@
+configfile: "experiment/chaotic_systems/config.yaml"
+
+rule kalman_classification:
+    output:
+        [
+            os.path.join(config["results_dir"], f"classifying_{target_field_indx}.html"),
+            for target_field_indx in range(3)
+        ]
+    shell: """
+        python experiment/chaotic_systems/classification.py
+    """

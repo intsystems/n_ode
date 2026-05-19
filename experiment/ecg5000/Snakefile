@@ -1,0 +1,48 @@
+configfile: "experiment/ecg5000/config.yaml"
+
+LABELS = ['1', '2', '3', '4', '5']
+
+for label in LABELS:
+    rule:
+        name: f"learn_fiels_{label}"
+        output:
+            os.path.join(config['results_dir'], label, "best.ckpt")
+        params:
+            label=label
+        shell: """
+            python experiment/ecg5000/learn_field.py {params.label}
+        """
+    
+    rule:
+        name: f"estimate_noise_{label}"
+        input:
+            os.path.join(config['results_dir'], label, "best.ckpt")
+        output:
+            os.path.join(config['results_dir'], label, "noise_sigma.npy")
+        params:
+            label=label
+        shell: """
+            python experiment/ecg5000/estimate_noise_std.py {params.label}
+        """
+    
+for pred_label in LABELS:
+    for target_label in LABELS:
+        rule:
+            name: f"classifiy_target_{target_label}_pred_{pred_label}"
+            input:
+                os.path.join(config['results_dir'], pred_label, "noise_sigma.npy"),
+                os.path.join(config['results_dir'], pred_label, "best.ckpt")
+            output:
+                os.path.join(config['results_dir'], f"cls_{target_label}_{pred_label}.csv")
+            params:
+                pred_label=pred_label, target_label=target_label
+            shell: """
+                python experiment/ecg5000/classify.py {params.target_label} {params.pred_label}
+            """
+
+rule all:
+    input:
+        [
+            os.path.join(config['results_dir'], f"cls_{target_label}_{pred_label}.csv")
+            for pred_label in LABELS for target_label in LABELS
+        ]

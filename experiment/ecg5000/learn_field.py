@@ -19,7 +19,7 @@ from lightning.pytorch.loggers import MLFlowLogger
 from experiment.ecg5000.utils.dataset import TakensSlicedTrajectoryDataset, TakensTrajectoryDataset
 from experiment.ecg5000.utils.field import FieldLitModule
 
-BATCH_SIZE = 16
+BATCH_SIZE = 256
 NUM_WORKERS = 0
 
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         enable_version_counter=False
     )
     trainer = Trainer(
-        accelerator="cpu",
+        accelerator="gpu",
         # devices=4,
         callbacks=[checkpointing],
         logger=logger,

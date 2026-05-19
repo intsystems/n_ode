@@ -11,7 +11,6 @@ from experiment.ecg5000.utils.dataset import TakensTrajectoryDataset
 from experiment.ecg5000.utils.field import FieldLitModule
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("label", type=int)
@@ -24,7 +23,7 @@ if __name__ == "__main__":
     )
 
     field_adapter = FieldLitModule.load_from_checkpoint(
-        os.path.join(config.results_dir, args.label, "best.ckpt"),
+        os.path.join(config.results_dir, str(args.label), "best.ckpt"),
         weights_only=False,
         traj_mean=torch.zeros((config.delay_dim, ), dtype=torch.float32),
         traj_std=torch.zeros((config.delay_dim, ), dtype=torch.float32)
@@ -36,11 +35,11 @@ if __name__ == "__main__":
     for i in range(len(train_dataset)):
         traj = train_dataset[i]
         t = torch.arange(traj.shape[0], dtype=torch.float32) * field_adapter.dt
-        pred_traj = odeint(field_adapter.field, traj[0], t)
+        pred_traj = odeint(field_adapter.field, traj[0].unsqueeze(0), t).squeeze(1)
         traj_deviation.append(traj - pred_traj)
     traj_deviation = torch.concat(traj_deviation)
     std_est = traj_deviation.std(dim=0).numpy()
     np.save(
-        os.path.join(config.results_dir, args.label, "noise_sigma.npy"),
+        os.path.join(config.results_dir, str(args.label), "noise_sigma.npy"),
         std_est
     )

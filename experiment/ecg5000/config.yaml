@@ -2,7 +2,7 @@ data_dir: data_ecg5000
 results_dir: results_ecg5000
 
 delay_dim: 10
-window_size: 20
+window_size: 30
 dt: 2e-3
 
 tracking_uri: sqlite:///mlflow.db

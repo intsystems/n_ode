@@ -482,9 +482,11 @@ TSWLatexianTemp*
 .snakemake
 .ansible
 data/
+data_ecg5000
 lightning_logs
 mlruns
 mlflow.db
 results
 results_sde
+results_ecg5000
 ssh_utils.sh

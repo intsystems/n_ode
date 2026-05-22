@@ -60,7 +60,7 @@ class FieldLitModule(LightningModule):
         T = batch.shape[1]
         x0 = batch[:, 0]
         t = torch.arange(T, dtype=torch.float32) * self.dt
-        pred = odeint(self.field, x0, t)
+        pred = odeint(self.field, x0, t, method="rk4", options={"step_size": 1e-3})
         target = batch.transpose(0, 1)
 
         return pred, target

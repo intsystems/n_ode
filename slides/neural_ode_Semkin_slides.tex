@@ -17,12 +17,13 @@
 
 \newcommand{\bz}{\ensuremath{\boldsymbol{z}}}
 \newcommand{\bx}{\ensuremath{\boldsymbol{x}}}
+\newcommand{\bbx}{\ensuremath\bar{{\boldsymbol{x}}}}
 \newcommand{\tbx}{\ensuremath{\tilde{\boldsymbol{x}}}}
 \newcommand{\tbz}{\ensuremath{\tilde{\boldsymbol{z}}}}
 \newcommand{\beps}{\ensuremath{\boldsymbol{\epsilon}}}
 \newcommand{\delayV}[1]{\overset{\leftarrow}{\boldsymbol{x}}({#1})}
 
-\title{Two robust approaches for classifying time series from dynamical systems}
+\title{Dynamical systems time series classification}
 \author{Kirill Semkin}
 \institute[MIPT]{Moscow Institute of Physics and Technology \\ Intelligent Systems}
 \date[2025]{\textit{Advisor}: Vadim Strijov, DSc \\ 2025}
@@ -39,12 +40,12 @@
 		
 		 \begin{equation}\label{eq:lat_dyn}
 		 	\begin{cases}
-		 		\frac{d}{dt} \bz(t) = f(\bz), \\
-		 		\bz(0) = \bz_0,
+		 		\frac{d}{dt} \bbx(t) = f(\bbx), \\
+		 		\bbx(0) = \bbx_0,
 		 	\end{cases}
 		 \end{equation}
 		 
-		assuming we have labeled sample series $\mathcal{D} = \{ (\tbx_1(t_i), y_1), \ldots, (\tbx_N(t_i), y_N) \}$.
+		assuming we have labeled sample series $\mathcal{D} = \{ (\bx_1(t_i), y_1), \ldots, (\bx_N(t_i), y_N) \}$ where $\bx(t_i) = \bbx(t_i) + \epsilon(t_i)$.
 		
 		\begin{figure}[h]
 			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/dws_example}
@@ -55,23 +56,23 @@
 		
 	\end{frame}% say tilde means noised
 	
-	\begin{frame}{"Direct" approach}
+	\begin{frame}{Classification overview}
 		
 		\begin{enumerate}
-			\item Reconstruct diffeomorphic phase trajectories from the observed time series: Whitney or Takens embedding theorem.
+			\item Reconstruct (if needed) diffeomorphic phase trajectories from the observed time series: Whitney or Takens embedding theorem.
 			\begin{equation*}
-				\{\tbx(t_i)\} \to \{\bz(t_i)\}
+				\{\tbx(t_i)\} \to \{\bbx(t_i)\}
 			\end{equation*}
-			\item Learn vector fields of the systems $f_i(\bz)$ from the trajectories (NODE).
+			\item Learn (if not provided) vector fields of the systems $f_i(\bz)$ from the trajectories (NODE).
 			\begin{equation*}
-				\hat{f} = \underset{f \in \mathcal{F}}{\arg\min} \  \mathcal{L}(\{\bz(t_i)\}, f)
+				\hat{f} = \underset{f \in \mathcal{F}}{\arg\min} \  \mathcal{L}(\{\bx(t_i)\}, f)
 			\end{equation*}
 			
 			Choose $\mathcal{L}, \mathcal{F}$ according to the prior knowledge of the system.			
 			\item Associate a test trajectory with the system that gives least deviation from the \emph{initial value problem} (IVP) (\ref{eq:lat_dyn}).
 			
 			\begin{equation*}
-				k = \underset{k \in 1 \ldots K}{\arg\min} \  \rho \big( \{\bz(t_i)\}, \text{IVP}(f_k, \bz(0)) \big)
+				k = \underset{k \in 1 \ldots K}{\arg\min} \  \rho \big( \{\bx(t_i)\}, \text{IVP}(t_i, f_k, \bbx_0) \big)
 			\end{equation*}
 		\end{enumerate}
 		
@@ -79,83 +80,61 @@
 	
 	\begin{frame}{Approach limitations}
 		
-		In steps 2-3 we need to compute IVP trajectories. For regular fields $f$ and fixed $\bz(0)$ IVP has unique solution. On practice, there are several factors that induce error in computing $\text{IVP}(f, \bz(0))$.
+		In steps 2-3 we need to compute precise IVP trajectories and know exact $\bbx_0$. On practice, it is not possible for several reasons
 		
 		\begin{enumerate}
 			\item In many cases IVP has no analytic solution and \emph{numerical solvers} are used. They induce numerical error and may have stability issues.
 			\item Learned field $\hat{f}$ from step 2 is an approximation of the real $f$. It contributes to the IVP error.
-			\item We have only noisy $\bz(0)$ observation.
-			\item The dynamical system (\ref{eq:lat_dyn}) may not be an adequate time series model globally. For example, the true field is not stationary $f(\bz, t)$. But it can fairly approximates dynamics locally.
+			\item Observed series $\bx_{t_i}$ are noisy including starting point $\bbx_0$.
+			\item The dynamical system (\ref{eq:lat_dyn}) may not be an adequate time series model globally. For example, the SDE model may be more appropriate
+			\begin{equation}\label{eq:series_sde_dyn}
+				\begin{cases}
+					d\bbx(t) = f(\bbx)dt + G dW(t), \\
+					\bbx(0) = \bbx_0,
+				\end{cases}
+			\end{equation}
 		\end{enumerate}
 		
 	\end{frame}
 	
-	\begin{frame}{Trajectory segmenting}
+	\begin{frame}{Classification as the filtering problem}
 		
-		Do not rely for $\text{IVP}(f, \bz(0))$. We know full (noisy) trajectory $\{\bz(t_i)\}$. Split it into parts and solve IVP per part. We can also add parameters for $\bz(0)$ if noise is significant
-		
+		We use ODE solvers to approximate dynamics (\ref{eq:lat_dyn}) and obtain the following state space model
+		\begin{gather*}
+			\bbx_{t_{i+1}} = \text{ODESolve}(\bbx_{t_i}) \\
+			\bx_{t_i} = \bbx_{t_i} + \epsilon_{t_i} \\
+			\bbx_0 \sim F(x)
+		\end{gather*}
+		In this formulation we change $\text{IVP}(t_i, f_k, \bbx_0)$ for $\mathbb{E}[ \{ \bbx_{t_i} \} | \{ \bx_{t_i}, \bbx_0 \}]$ --- the filtering problem. The classifier is now
 		\begin{equation*}
-			k = \underset{k \in 1 \ldots K}{\arg\min} \sum\limits_{s=0}^S  \rho \big( \{\bz^s(t_i)\}, \text{IVP}(f_k, \bz^s_0) \big)
+			k = \underset{k \in 1 \ldots K}{\arg\min} \  \rho \big( \{\bx(t_i)\}, \mathbb{E}[ \{ \bbx_{t_i} \} | \{ \bx_{t_i}, \bbx_0 \}] \big).
 		\end{equation*}
 		
-		In terms of \emph{bias-variance tradeoff} adding $\bz_0$ parameters decrease bias but will increase variance. Trajectory segmenting also allows for \emph{parallel} trajectory processing.
-		
-		\vspace{-1.5em}		
-		\begin{figure}[h]
-			\subfloat[No segmenting]{\includegraphics[width=0.49\textwidth, keepaspectratio]{img/no_segmenting}}
-			\subfloat[With segmenting]{\includegraphics[width=0.49\textwidth, keepaspectratio]{img/segmenting}}
-		\end{figure}
-		
-	\end{frame}
-	
-	\begin{frame}{"Transition to model space" approach}
-		
-		Instead of analyzing trajectories let's analyze vector field $f$ directly. 
-		
-		\begin{enumerate}
-			\item Split trajectory on the \emph{segments} (with possibly adaptive sizes).
-			\item Assume linear field approximation is fair inside the segments
-				\begin{equation*}
-					\dot{x} = f(\bx) \approx f(\bx_0) + \left.\mathcal{I}\right|_{\bx_0} (\bx - \bx_0)
-				\end{equation*}
-			and learn it (i.e. $f(\bx_0)$ and $\left.\mathcal{I}\right|_{\bx_0}$).
-			\item Do it for every train and test trajectory. In the end we have samples of $f$ values across the phase space.
-		\end{enumerate}
-		
-		\emph{One possible} solution is then:
-		
-		\begin{enumerate}
-			\item Build global parametric approximation $\hat{f}_k, \ k \in 1 \ldots K$.
-			\item Classifier is the system with the minimum deviation of the vector field samples of the test trajectory
-				\begin{equation*}
-					k = \underset{k \in 1 \ldots K}{\arg\min} \  \rho \big( \{f(t_i)\}, \{\hat{f}_k(t_i)\} \big)
-				\end{equation*}
-		\end{enumerate}
+		For the SDE dynamics we just obtain more general filtering problem
+		\begin{gather*}
+			\bbx_{t_{i+1}} = \text{ODESolve}(\bbx_{t_i}) + \xi_{t_{i+1}} \\
+			\bx_{t_i} = \bbx_{t_i} + \epsilon_{t_i} \\
+			\bbx_0 \sim F(x)
+		\end{gather*}
 		
 	\end{frame}
 	
-	%\begin{frame}{Comparison with the Chen's model}
-	%	
-	%	Why can't we learn dynamics from the original series?
-	%	
-	%\end{frame}
-	
-	\begin{frame}{Experiments to justify trajectory segmenting}
+	\begin{frame}{Experiments to justify filtering}
 		
-		Trajectory segmenting helps to stabilize numerical solvers.
+		Compare direct ODE solvers and filtering for the noisy trajectory of the ODE system $\dot{x} = x$
 		
-		\vspace{-1.5em}		
+		%\vspace{-1.5em}		
 		\begin{figure}[h]
-			\subfloat[No segmenting]{\includegraphics[width=0.49\textwidth, keepaspectratio]{img/solver_noseg}}
-			\subfloat[With segmenting]{\includegraphics[width=0.49\textwidth, keepaspectratio]{img/solver_seg}}
+			\centering
+			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/Screenshot 2026-05-23 at 15.28.58.png}
 		\end{figure}
 		
-		Trajectory segmenting is robust under noisy samples.
+		Compare direct ODE solvers and filtering for the noisy trajectory of the SDE system $dx_t = x_t (1 + dW_t)$
 		
-		\vspace{-1.5em}
+		%\vspace{-1.5em}
 		\begin{figure}[h]
-			\subfloat[No segmenting]{\includegraphics[width=0.4\textwidth, keepaspectratio]{img/noise_noseg}}
-			\subfloat[With segmenting]{\includegraphics[width=0.4\textwidth, keepaspectratio]{img/noise_seg}}
+			\centering
+			\includegraphics[width=0.49\textwidth, keepaspectratio]{img/Screenshot 2026-05-23 at 15.35.19.png}
 		\end{figure}
 		
 	\end{frame}
@@ -164,12 +143,12 @@
 	%	
 	%\end{frame}
 	
-	\begin{frame}{Future work}
+	\begin{frame}{Выносится на защиту}
 		
 		\begin{enumerate}
-			\item Adaptive segmenting.
-			\item Relation to non-stationary systems and stochastic differential equations.
-			\item More deep limitations analysis.
+			\item Предложен метод классификации временных рядов в модели ODE/SDE с учётом случайного шума.
+			\item Получены теоретические результаты асимптотической оптимальности классификатора при достаточной информации о дин.системах и начальной точки. Обоснован подход с фильтрацией при отсутствии данных условий.
+			\item Подход эмпирически валидирован на синтетических и реальных данных.
 		\end{enumerate}
 		
 	\end{frame}

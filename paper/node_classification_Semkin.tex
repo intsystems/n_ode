@@ -10,6 +10,7 @@
 \usepackage{array,tabularx,tabulary,booktabs}
 \usepackage{multirow}
 \usepackage{diagbox}
+\usepackage{bbm}
 
 \theoremstyle{definition}
 \newtheorem{Def}{Definition}
@@ -61,11 +62,15 @@
 				\bbx(0) = \bbx_0,
 			\end{cases}
 		\end{equation}
-		where $\bbx \in M$, $f(\bx): M \to M$ is a \textit{vector field}, $\bbx_0$ is a \textit{starting point}, $M$ is an differentiable manifold in general. To find a solution $\bbx(t)$ satisfying (\ref{eq:series_dyn}) on some time interval is to solve an \emph{initial value problem}. Under some regularity conditions on $f$ the solution is unique~\cite{Wiggins2003}. The $\bbx(t)$ is called a \textit{phase trajectory}. We associate $K$ different vector fields $f_j, \  j \in 1, \ldots, K$ with each series class. The final series values are noisy phase trajectories
+		where $\bbx \in M$, $f(\bx): M \to M$ is a \textit{vector field}, $\bbx_0$ is a \textit{starting point}, $M$ is an differentiable manifold in general. To find a solution $\bbx(t)$ satisfying (\ref{eq:series_dyn}) on some time interval is to solve an \emph{initial value problem}. We also denote it as $\text{IVP}(t, \bbx_0, f)$. Under some regularity conditions on $f$ the solution is unique~\cite{Wiggins2003}. The $\bbx(t)$ is called a \textit{phase trajectory}. We associate $K$ different vector fields $f_j, \  j \in 1, \ldots, K$ with each series class. The final series values are noisy phase trajectories
 		\begin{equation}\label{eq:series_def}
 			\bx(t_i) = \bbx(t_i) + \epsilon(t_i),
 		\end{equation}
-		where $\epsilon(t_i)$ are i.i.d. random variables mutual for all classes and any times, having $\mathbb{E}[\epsilon(t_i)] = 0$ and $\mathbb{D}[\epsilon(t_i)] = \sigma^2 < \infty$.  Therefore $\mathbb{E}[\bx(t_i)] = \bbx(t_i)$ and $\mathbb{D}[\bx(t_i)] = \sigma^2$. We would like to obtain a classifier that would mainly rely on the knowledge of the underlying dynamical systems $f_j$ and would not strongly depend on the randomness from the $\epsilon(t_i)$ so it may be not fully known. We will later show that provided conditions on the noise are enough to obtain an asymptotically accurate classifier. Moreover, we will be able to adapt the classifier to the more general dynamical system described by the \emph{stochastic differential equation (SDE)} \cite{bibid} of the form
+		where $\epsilon(t_i)$ are i.i.d. random variables mutual for all classes and any times, having
+		\begin{equation}\label{eq:noise_conditions}
+			\mathbb{E}[\epsilon(t_i)] = 0, \  \mathbb{D}[\epsilon(t_i)] = \sigma^2 < \infty.
+		\end{equation}
+		Therefore $\mathbb{E}[\bx(t_i)] = \bbx(t_i)$ and $\mathbb{D}[\bx(t_i)] = \sigma^2$. We would like to obtain a classifier that would mainly rely on the knowledge of the underlying dynamical systems $f_j$ and would not strongly depend on the randomness from the $\epsilon(t_i)$ so it may be not fully known. We will later show that provided conditions on the noise are enough to obtain an asymptotically accurate classifier. Moreover, we will be able to adapt the classifier to the more general dynamical system described by the \emph{stochastic differential equation (SDE)} \cite{bibid} of the form
 		\begin{equation}\label{eq:series_sde_dyn}
 			\begin{cases}
 				d\bbx(t) = f(\bbx)dt + G dW(t), \\
@@ -79,9 +84,9 @@
 			\bx(t_i) = \alpha(\bbx(t_i)) + \epsilon(t_i).
 		\end{equation}
 		We would like to reconstruct the phase trajectories from the observations to build a classifier. The reconstruction will be based on building an embedding of the manifold $M$. In general, an embedding of a manifold $M$ is a smooth map $\phi: M \to N$ into another manifold $N$ that is a diffeomorphism onto its image $\phi(M)$. It follows that phase trajectories $\bbx(t) \subset M$ and $\phi(\bbx(t)) \subset\phi(M)$ are basically identical (more strictly, diffeomorphic). To reconstruct the phase trajectories we need to build $\phi(\bbx(t))$ from the observed time series $\bx(t_i)$. One way to archive this is the Whitney Embedding Theorem~\cite{whitney}. If $\alpha$ is a generic map~\cite{what is generic} from $M$ to $\mathbb{R}^{2k + 1}$ then $\alpha = \phi$ and observed series are the $\phi(\bbx(t))$. In fact, this approach is identical to the (\ref{eq:series_def}) but in general requires an excessive $2k + 1$ number of time series even when $k$ is rather small. Another approach is the Takens embedding theorem~\cite{takens2006detecting}. It requires only one observed scalar time series $x(t_i)$. If $\alpha$ is a generic map from $M$ to $\mathbb{R}$ then the embedding is given by the map
-		\begin{equation}
-			phi(\bbx) = \big( \alpha(x), f^{-1}(\alpha(x)), \ldots, f^{-m}(\alpha(x)) \big),
-		\end{equation}
+		\begin{equation*}
+			\phi(\bbx) = \big( \alpha(x), f^{-1}(\alpha(x)), \ldots, f^{-m}(\alpha(x)) \big),
+		\end{equation*}
 		where $m > 2k$. Substituting $\bbx(t_i)$ gives us $\phi(\bbx(t_i)) = \big( x(t_i), x(t_{i-1}), \ldots, x(t_{i-k})\big)$ which we call \emph{delay vector} and denote as $\delayV{t_i}$. Illustration of the Takens theorem is on the Fig.~\ref{fig:takens}. Note that Whitney and Takens theorems assume observed series are not noisy. So when we apply them to the noisy $\bx(t_i)$ from the (\ref{eq:takens_series}) the reconstruction $\phi(\bbx(t_i))$ is also noisy and is basically similar to the $\bx(t_i)$ from the (\ref{eq:series_def}). Further, we would not differentiate reconstructed phase trajectories and the original one.
 		
 		\begin{figure}[h]
@@ -120,14 +125,77 @@
 		In the next section we will describe a general principal for the time series classification inside our model. We will build an asymptotically optimal classifier under mentioned properties of the noise $\epsilon_{t_i}$ and several additional conditions. These conditions will help with a theoretical prove but may not hold in practice. So we will progressively discard this conditions and adapt classifier for a more general settings. We will also show how adapt the classifier to the SDE case (\ref{eq:series_sde_dyn}). Finally, we will describe the procedure of building vector field approximations from the data. Then we will apply our method to three classification tasks for emprirical validation. The first will be the classification of several known chaotic~\cite{bibid} dynamical systems. The second will be classification of the human motions from the Inertial Measurement Unit (IMU) sensors. The last one will be classification of heart condition from the ECG recordings.
 		
 	\section{Asymptotically optimal classifier}
+	
+		The main principle for building a classifier in the paper is the proximity of an observed time series $\bx(t_i)$ to the theoretical initial value problem solution $\text{IVP}(t, \bbx_0, f_j)$ for each class $j \in 1 \ldots K$. The notion of the proximity will vary depending on the conditions we will assume. Basically, out classifier is distance-based.
 		
+		It appears that if the starting point $\bbx_0$ is known exactly then we can build a theoretical classifier with vanishing probability of the misclassification as the length of the time series increases. Denote by $\rho\big( \bx(t_i), \mathbf{y}(t_i) \big)$ the metric between time series $\bx(t_i)$, $\mathbf{y}(t_i)$ defined as 
+		\begin{equation}
+			\rho\big( \bx(t_i), \mathbf{y}(t_i) \big) = \sum\limits_{t_i} \lVert \bx(t_i) - \mathbf{y}(t_i) \rVert_2.
+		\end{equation}
+		Then, the classifier is defined as
+		\begin{equation}\label{def:basic_classifier}
+			\delta \big( \bx(t_i) \big) = \underset{j \in 1 \ldots K}{\arg\min} \ \rho\big( \bx(t_i), \text{IVP}(t_i, \bbx_0, f_j) \big).
+		\end{equation}
+		\begin{Th}\label{thm:asympt_optimal}
+			Let $\bx(t_i)= \{\bx(t_1), \ldots, \bx(t_n)\}$ be the time series to classify. Let $\bbx_0$ be the starting point of the associated phase trajectory $\bbx(t_i)$. Let $y$ denote the true class of the time series. Then, under proposed conditions on the noise (\ref{eq:noise_conditions}), the following holds
+			\begin{equation*}
+				\mathbb{P}(\delta(\bx(t_i)) \not= y) = \mathbb{E}[\mathbbm{1}(\bx(t_i) \not= y) ] \to 0, \  n \to \infty.
+			\end{equation*}
+		\end{Th}
+		The proof of the theorem is deferred to Appendix \ref{app:proofs}. We only note that the choice of the metric $\rho$ is determined by the conditions on the noise $\epsilon_{t_i}$. If instead of the zero mean we assumed zero median $\text{med}(\epsilon_{t_i}) = 0$ the metric would be $\rho\big( \bx(t_i), \mathbf{y}(t_i) \big) = \sum\limits_{t_i} \lVert \bx(t_i) - \mathbf{y}(t_i) \rVert_1$ (see Appendix \ref{app:proofs}).
 		
 	
-	\section{Classification in general case}
+	\section{Practical classifier}
+	
+		Unfortunately, the classifier (\ref{def:basic_classifier}) relies on precise IVP solutions and Theorem \ref{thm:asympt_optimal} relies on precise starting point $\bbx_0$. These requirements are often too strong on practice. We now provide several reasons for that and propose a new classifier.
+		
+		\subsection{Approximate vector field}
+		
+			Imagine instead of the true vector fields $f_j$ we only have approximate versions $\tilde{f}_j$ such that
+			\begin{equation*}
+				\lVert f_j - \tilde{f}_j \rVert \le r_j,
+			\end{equation*}
+			where $\lVert \cdot \rVert$ is some norm in function space $\mathcal{F}(M)$ and $r_j$ are approximation errors. This situation always rises when one finds vector fields from the data (see Section \ref{label}).
+			
+			In general, any approximation error is enough for phase trajectories from $f$ and $\tilde{f}$ to diverge.
+			\begin{Lem}\label{lem:approx_pathology}
+				For any $\epsilon > 0$ there exists $f, \tilde{f}$ such that $	\lVert f_j - \tilde{f}_j \rVert \le \epsilon$ but for any time sequence $\{t_i\}_{i=1}^{\infty}$ and any $\bx_0 \not= 0$ the following holds
+				\begin{equation*}
+					\sum\limits_{i=0}^{+\infty} 	\lVert \bx_{t_i} - \tilde{\bx}_{t_i} \rVert_2 = \infty.
+				\end{equation*}
+			\end{Lem}
+			That makes classifier (\ref{def:basic_classifier}) useless. Nonetheless, for a large family of vector fields the $\text{IVP}(t, \bbx_0, \tilde{f}_j)$ are arbitrary close to $\text{IVP}(t, \bbx_0, f_j)$ if $r_j$ is sufficiently small and times are bounded $t < T$. This is called Grönwall-type bounds and can be found in ODE literature~\cite{arnold1992ordinary}. So further we assume approximation errors are small enough and not differentiate between $\text{IVP}(t, \bbx_0, \tilde{f}_j)$ and $\text{IVP}(t, \bbx_0, f_j)$. We also assume that vector fields $f_j$ are considerably different across classes to exclude situations like in Lemma \ref{lem:approx_pathology}.
+			
+		\subsection{Approximate IVP solutions}
+			
+		
+		\subsection{Noisy phase trajectories}
+	
+	\section{Adapting classifier for SDE}
+	
+	\section{Learning vector field from data}
 	
 	\section{Empirical study}\label{Experiment}
+	
+	\section{Conclusion}
 		
+	\bibliography{lit.bib}
+	
+	\begin{appendices}
+		\section{Proofs}\label{app:proofs}
 		
-		\bibliography{lit.bib}
+			To proof Theorem \ref{thm:asympt_optimal} we need to obtain an upper bound on the conditional probability of the misclassification.
+			\begin{Lem}
+				content...
+			\end{Lem}
+			\begin{proof}
+				content...
+			\end{proof}
+			
+			\begin{proof}[Proof of Theorem \ref{thm:asympt_optimal}]
+				content...
+			\end{proof}
+		
+	\end{appendices}
 	
  \end{document}

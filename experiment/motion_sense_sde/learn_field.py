@@ -21,7 +21,7 @@ from experiment.motion_sense_sde.utils.field import FieldLitModule
 
 BATCH_SIZE = 1024
 NUM_WORKERS = 2
-WINDOW_SIZE = 16
+WINDOW_SIZE = 100
 
 
 if __name__ == "__main__":

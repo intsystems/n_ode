@@ -21,16 +21,16 @@ class Field(nn.Module):
         super().__init__()
 
         self.A = nn.Linear(d, d, bias=False)
-        INIT_SCALE = 1.
-        # initalize small
-        self.A.weight = nn.Parameter(INIT_SCALE * torch.randn_like(self.A.weight))
+        self.A.weight = nn.Parameter(1. * torch.randn_like(self.A.weight))
 
         self.nonlinear_add = nn.Sequential(
-            nn.BatchNorm1d(d), nn.Linear(d, d), nn.ReLU(),
-            nn.BatchNorm1d(d), nn.Linear(d, d), nn.ReLU(),
-            nn.BatchNorm1d(d), nn.Linear(d, d), nn.ReLU(),
-            nn.BatchNorm1d(d), nn.Linear(d, d), nn.ReLU(),
-            nn.BatchNorm1d(d), nn.Linear(d, d)
+            nn.Linear(d, d), nn.Tanh(),
+            nn.Dropout(0.05), nn.BatchNorm1d(d), nn.Linear(d, d), nn.Tanh(),
+            nn.Linear(d, d), nn.Tanh(),
+            nn.Dropout(0.05), nn.Linear(d, d), nn.Tanh(),
+            nn.Linear(d, d), nn.BatchNorm1d(d), nn.Tanh(),
+            nn.Linear(d, d), nn.Tanh(),
+            nn.Linear(d, d)
         )
     
     def forward(self, t: torch.Tensor, x: torch.Tensor):
@@ -60,7 +60,7 @@ class FieldLitModule(LightningModule):
         T = batch.shape[1]
         x0 = batch[:, 0]
         t = torch.arange(T, dtype=torch.float32) * self.dt
-        pred = odeint(self.field, x0, t)
+        pred = odeint(self.field, x0, t, method="rk4", options={"step_size": 1e-3})
         target = batch.transpose(0, 1)
 
         return pred, target

@@ -15,14 +15,15 @@ from filterpy.kalman import UnscentedKalmanFilter, MerweScaledSigmaPoints
 from experiment.ecg5000.utils.dataset import TakensTrajectoryDataset
 from experiment.ecg5000.utils.field import FieldLitModule
 
+from rich.progress import track
 
 global ukf
 
 def np_field_adapter(torch_field: nn.Module):
     def field(x: np.ndarray, dt: float):
-        x = torch.from_numpy(x)
+        x = torch.from_numpy(x).unsqueeze(0)
         t_mesh = torch.tensor([0., dt])
-        return odeint(torch_field, x, t_mesh)[-1].numpy()
+        return odeint(torch_field, x, t_mesh).squeeze(1)[-1].numpy()
     
     return field
 
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     )
 
     field_adapter = FieldLitModule.load_from_checkpoint(
-        os.path.join(config.results_dir, args.pred_label, "best.ckpt"),
+        os.path.join(config.results_dir, str(args.pred_label), "best.ckpt"),
         weights_only=False,
         traj_mean=torch.zeros((config.delay_dim, ), dtype=torch.float32),
         traj_std=torch.zeros((config.delay_dim, ), dtype=torch.float32)
@@ -72,18 +73,20 @@ if __name__ == "__main__":
     for param in field_adapter.parameters():
         param.requires_grad = False
     noise_sigma = np.load(
-        os.path.join(config.results_dir, args.pred_label, "noise_sigma.npy")
+        os.path.join(config.results_dir, str(args.pred_label), "noise_sigma.npy")
     )
 
     pool = ProcessPoolExecutor(
         max_workers=2, initializer=worker_init, initargs=(field_adapter, noise_sigma)
     )
 
-    results_futures= [
-        pool.submit(compute_distance,  test_dataset[i].numpy())
+    results_futures = [
+        pool.submit(compute_distance, test_dataset[i].numpy())
         for i in range(len(test_dataset))
     ]
-    results = [f.result() for f in results_futures]
+    results = []
+    for f in track(results_futures, "Processing target trajectories"):
+        results.append(f.result())
     results = pd.DataFrame(
         {"distance": results, "traj_num": list(range(len(test_dataset)))}
     )

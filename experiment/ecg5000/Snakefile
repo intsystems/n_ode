@@ -1,6 +1,7 @@
 configfile: "experiment/ecg5000/config.yaml"
 
-LABELS = ['1', '2', '3', '4', '5']
+# LABELS = ['1', '2', '3', '4', '5']
+LABELS = ['1', '2']
 
 for label in LABELS:
     rule:

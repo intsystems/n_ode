@@ -19,8 +19,8 @@ from lightning.pytorch.loggers import MLFlowLogger
 from experiment.ecg5000.utils.dataset import TakensSlicedTrajectoryDataset, TakensTrajectoryDataset
 from experiment.ecg5000.utils.field import FieldLitModule
 
-BATCH_SIZE = 16
-NUM_WORKERS = 0
+BATCH_SIZE = 256
+NUM_WORKERS = 1
 
 
 if __name__ == "__main__":
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     )
     test_dataset = TakensSlicedTrajectoryDataset(
         os.path.join(config.data_dir, "ECG5000_TEST.txt"),
-        config.delay_dim, args.label, config.window_size, max_series=100
+        config.delay_dim, args.label, config.window_size, max_series=500
     )
     # normalization
     unslided_train_dataset = TakensTrajectoryDataset(
@@ -74,11 +74,11 @@ if __name__ == "__main__":
         enable_version_counter=False
     )
     trainer = Trainer(
-        accelerator="cpu",
+        accelerator="gpu",
         # devices=4,
         callbacks=[checkpointing],
         logger=logger,
-        max_epochs=1,
+        max_epochs=5,
         log_every_n_steps=10
     )
     trainer.fit(

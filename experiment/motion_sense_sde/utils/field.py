@@ -21,12 +21,13 @@ class SDEField(nn.Module):
         self.A = nn.Linear(d, d)
         self.A.weight = nn.Parameter(1. * torch.randn_like(self.A.weight))
         self.nonlinear_add = nn.Sequential(
-            nn.Linear(d, d), nn.ReLU(),
-            nn.Dropout(0.1), nn.Linear(d, d), nn.ReLU(),
-            nn.Linear(d, d), nn.ReLU(),
-            nn.Dropout(0.1), nn.Linear(d, d), nn.ReLU(),
-            nn.Linear(d, d), nn.ReLU(),
-            nn.Linear(d, d), nn.Tanh()
+            nn.Linear(d, d), nn.LeakyReLU(),
+            nn.Linear(d, d), nn.LeakyReLU(),
+            nn.Linear(d, d), nn.LeakyReLU(),
+            nn.Linear(d, d), nn.LeakyReLU(),
+            nn.Linear(d, d), nn.LeakyReLU(),
+            nn.Linear(d, d), nn.LeakyReLU(),
+            nn.Linear(d, d)
         )
         self.brownian_sigma = nn.Parameter(
             1e-1 * torch.randn((d, ))
@@ -34,8 +35,8 @@ class SDEField(nn.Module):
     
     def f(self, t: torch.Tensor, x: torch.Tensor):
         x = x.to(torch.float32)
-        # return self.nonlinear_add(x)
-        return self.A(x) + self.nonlinear_add(x)
+        return self.nonlinear_add(x)
+        # return self.A(x) + self.nonlinear_add(x)
 
     def g(self, t: torch.Tensor, x: torch.Tensor):
         return self.brownian_sigma.expand_as(x)
@@ -75,12 +76,15 @@ class FieldLitModule(LightningModule):
 
         batch = (batch - self.traj_mean) / self.traj_std
         pred, target = self._rollout(batch)
-        loss = nn.functional.mse_loss(pred, target)
+        loss = nn.functional.smooth_l1_loss(pred, target, beta=1e-1)
         self.log("Train/loss", loss, on_step=True, on_epoch=True)
 
         self.manual_backward(loss)
         for opt in self.optimizers():
             opt.step()
+        
+        if self.trainer.is_last_batch:
+            self.lr_schedulers().step()
 
     def validation_step(self, batch, batch_idx):
         batch = (batch - self.traj_mean) / self.traj_std
@@ -91,13 +95,20 @@ class FieldLitModule(LightningModule):
         return loss
     
     def configure_optimizers(self):
-        return [
+        optimizers = [
             optim.Adam(
                 chain(self.field.nonlinear_add.parameters()),
-                lr=1e-3, weight_decay=1e-6
+                lr=1e-2, weight_decay=1e-8
             ),
             optim.Adam(
                 self.field.A.parameters(),
                 lr=1e-3
             )
         ]
+        schedulers = [
+            optim.lr_scheduler.LinearLR(
+                optimizers[0],
+                start_factor=1., end_factor=1e-1, total_iters=10
+            )
+        ]
+        return optimizers, schedulers

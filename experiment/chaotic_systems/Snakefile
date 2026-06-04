@@ -11,3 +11,8 @@ rule lstm_classification:
     shell: """
         python experiment/chaotic_systems/lstm_classify.py
     """
+
+rule knn_dtw_classification:
+    shell: """
+        python experiment/chaotic_systems/knn_dtw_classification.py
+    """

@@ -11,15 +11,11 @@ from lightning.pytorch import LightningModule, Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import MLFlowLogger
 
-from fields import LorenzField, RosslerField, ChuaField
+from fields import matched_spectrum_trio
 
 SEED = 847
 NUM_SAMPLES = 1000
-TRAJ_LEN = 100
-dt = 1e-1
 d = 3
-NOISE_SIGMA = 1e-1
-X0_SIGMA = 1.
 VAL_FRAC = 0.1
 TEST_FRAC = 0.1
 BATCH_SIZE = 32
@@ -27,22 +23,6 @@ HIDDEN_SIZE = 64
 NUM_LAYERS = 2
 LR = 1e-3
 MAX_EPOCHS = 50
-
-
-def generate_dataset() -> tuple[torch.Tensor, torch.Tensor]:
-    fields = [LorenzField(), RosslerField(), ChuaField()]
-    t_mesh = torch.arange(TRAJ_LEN) * dt
-
-    trajs, labels = [], []
-    for label, field in enumerate(fields):
-        x0 = torch.randn((NUM_SAMPLES, d)) * X0_SIGMA
-        traj = odeint(field, x0, t_mesh)[1:]
-        traj = traj + torch.randn_like(traj) * NOISE_SIGMA
-        traj = traj.transpose(0, 1).to(torch.float32)
-        trajs.append(traj)
-        labels.append(torch.full((NUM_SAMPLES,), label, dtype=torch.long))
-
-    return torch.cat(trajs, dim=0), torch.cat(labels, dim=0)
 
 
 class LSTMClassifier(LightningModule):
@@ -99,6 +79,20 @@ if __name__ == "__main__":
     config = OmegaConf.load("experiment/chaotic_systems/config.yaml")
     seed_everything(SEED)
 
+    def generate_dataset() -> tuple[torch.Tensor, torch.Tensor]:
+        fields = matched_spectrum_trio(spacing=1.0)
+        t_mesh = torch.arange(config.traj_len) * config.dt
+
+        trajs, labels = [], []
+        for label, field in enumerate(fields):
+            x0 = torch.randn((NUM_SAMPLES, d)) * config.x0_sigma
+            traj = odeint(field, x0, t_mesh)[1:]
+            traj = traj + torch.randn_like(traj) * config.noise_sigma
+            traj = traj.transpose(0, 1).to(torch.float32)
+            trajs.append(traj)
+            labels.append(torch.full((NUM_SAMPLES, ), label, dtype=torch.long))
+
+        return torch.cat(trajs, dim=0), torch.cat(labels, dim=0)
     trajs, labels = generate_dataset()
     full_dataset = TensorDataset(trajs, labels)
 

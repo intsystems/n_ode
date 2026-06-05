@@ -73,7 +73,7 @@
 	author = {J. Daunizeau and K.J. Friston and S.J. Kiebel},
 }
 @book{
-	Kalnay_2002, place={Cambridge}, title={Atmospheric Modeling, Data Assimilation and Predictability}, publisher={Cambridge University Press}, author={Kalnay, Eugenia}, year={2002}
+	Kalnay_2002, address={Cambridge}, title={Atmospheric Modeling, Data Assimilation and Predictability}, publisher={Cambridge University Press}, author={Kalnay, Eugenia}, year={2002}
 }
 @article{weather_regimes,
 	author = {Michelangeli, Paul-Antoine and Vautard, Robert and Legras, Bernard},
@@ -144,7 +144,7 @@
 	pages = {359–370},
 	numpages = {12},
 	keywords = {time series, pattern analysis, knowledge discovery, dynamic time warping, dynamic programming},
-	location = {Seattle, WA},
+	address = {Seattle, WA},
 	series = {AAAIWS'94}
 }
 @article{knn_dtw,
@@ -329,18 +329,6 @@
 	doi = {10.1063/5.0019309}
 }
 
-% ode solvers
-@book{ode_solvers,
-	author = {Hairer, Ernst and Norsett, Syvert and Wanner, Gerhard},
-	year = {1993},
-	month = {01},
-	pages = {},
-	title = {Solving Ordinary Differential Equations I: Nonstiff Problems},
-	volume = {8},
-	isbn = {978-3-540-56670-0},
-	doi = {10.1007/978-3-540-78862-1}
-}
-
 @book{hogg2005introduction,
 	title={Introduction to Mathematical Statistics},
 	author={Hogg, R.V. and McKean, J.W. and Craig, A.T.},
@@ -348,7 +336,8 @@
 	lccn={77002884},
 	series={Pearson education international},
 	year={2005},
-	publisher={Pearson Education}
+	publisher={Pearson Education},
+	address={Pearson/Prentice Hall, Upper Saddle River, NJ, 64}
 }
 @book{bishop, author = {Bishop, Christopher M.}, title = {Pattern Recognition and Machine Learning (Information Science and Statistics)}, year = {2006}, isbn = {0387310738}, publisher = {Springer-Verlag}, address = {Berlin, Heidelberg} }
 
@@ -374,9 +363,51 @@
 	isbn      = {978-3-540-34563-3},
 	doi       = {10.1007/978-3-642-58088-8}
 }
+@inproceedings{node,
+	author = {Chen, Ricky T. Q. and Rubanova, Yulia and Bettencourt, Jesse and Duvenaud, David},
+	title = {Neural ordinary differential equations},
+	year = {2018},
+	publisher = {Curran Associates Inc.},
+	address = {Red Hook, NY, USA},
+	booktitle = {Proceedings of the 32nd International Conference on Neural Information Processing Systems},
+	pages = {6572–6583},
+	numpages = {12},
+	location = {Montr\'{e}al, Canada},
+	series = {NIPS'18}
+}
+@book{ode_solvers,
+	author = {Hairer, Ernst and Norsett, Syvert and Wanner, Gerhard},
+	year = {1993},
+	month = {01},
+	pages = {},
+	title = {Solving Ordinary Differential Equations I: Nonstiff Problems},
+	volume = {8},
+	isbn = {978-3-540-56670-0},
+	doi = {10.1007/978-3-540-78862-1}
+}
+@book{ode_solvers_stiff,
+	author = {Hairer, Ernst and Wanner, Gerhard},
+	year = {1996},
+	month = {01},
+	pages = {},
+	title = {Solving Ordinary Differential Equations II. Stiff and Differential-Algebraic Problems},
+	volume = {14},
+	journal = {Springer Verlag Series in Comput. Math.},
+	doi = {10.1007/978-3-662-09947-6}
+}
 
 %SDE
-@InProceedings{pmlr-v108-li20i,
+@book{oksendal_sde,
+	author = {Øksendal, Bernt},
+	year = {2000},
+	month = {01},
+	pages = {326},
+	title = {Stochastic Differential Equations},
+	volume = {77},
+	journal = {The Mathematical Gazette},
+	doi = {10.2307/3619809}
+}
+@inproceedings{pmlr-v108-li20i,
 	title = 	 {Scalable Gradients for Stochastic Differential Equations},
 	author =       {Li, Xuechen and Wong, Ting-Kam Leonard and Chen, Ricky T. Q. and Duvenaud, David},
 	booktitle = 	 {Proceedings of the Twenty Third International Conference on Artificial Intelligence and Statistics},
@@ -387,7 +418,8 @@
 	series = 	 {Proceedings of Machine Learning Research},
 	month = 	 {26--28 Aug},
 	publisher =    {PMLR},
-	url = 	 {https://proceedings.mlr.press/v108/li20i.html}
+	url = 	 {https://proceedings.mlr.press/v108/li20i.html},
+	address =      {Brookline, MA}
 }
 @inproceedings{NEURIPS2021_9ba196c7,
 	author = {Kidger, Patrick and Foster, James and Li, Xuechen (Chen) and Lyons, Terry},
@@ -398,12 +430,49 @@
 	title = {Efficient and Accurate Gradients for Neural SDEs},
 	url = {https://proceedings.neurips.cc/paper\_files/paper/2021/file/9ba196c7a6e89eafd0954de80fc1b224-Paper.pdf},
 	volume = {34},
-	year = {2021}
+	year = {2021},
+	address =      {Brookline, MA}
 }
 
+% filtering and smoothing
+@book{bayes_filter_smooth,
+	author = {Särkkä, Simo},
+	year = {2013},
+	month = {10},
+	pages = {},
+	title = {Bayesian Filtering and Smoothing},
+	isbn = {9781107030657},
+	journal = {Bayesian Filtering and Smoothing},
+	doi = {10.1017/CBO9781139344203}
+}
+@inproceedings{Julier1997NewEO,
+	title={New extension of the Kalman filter to nonlinear systems},
+	author={Simon J. Julier and Jeffrey K. Uhlmann},
+	booktitle={Defense, Security, and Sensing},
+	year={1997},
+	url={https://api.semanticscholar.org/CorpusID:7937456}
+}
+@unknown{ekf_book,
+	author = {Ribeiro, Maria and Ribeiro, Isabel},
+	year = {2004},
+	month = {04},
+	pages = {},
+	title = {Kalman and Extended Kalman Filters: Concept, Derivation and Properties}
+}
 
+% GMM
+@article{gmm_hansen,
+	author = {Lars Peter Hansen},
+	title = {Large Sample Properties of Generalized Method of Moments Estimators},
+	journal = {Econometrica},
+	volume = {50},
+	number = {4},
+	pages = {1029-1054},
+	url = {https://onlinelibrary.wiley.com/doi/abs/0012-9682(198207)50:4&lt;1029:LSPOGM&gt;2.0.CO;2-O},
+	year = {1982}
+}
 
-% Main citations
+% Manifold 
 @inproceedings{takens2006detecting,
 	title={Detecting strange attractors in turbulence},
 	author={Takens, Floris},
@@ -425,15 +494,62 @@
 	volume = {37},
 	year = {1936}
 }
-@inproceedings{node,
-	author = {Chen, Ricky T. Q. and Rubanova, Yulia and Bettencourt, Jesse and Duvenaud, David},
-	title = {Neural ordinary differential equations},
-	year = {2018},
-	publisher = {Curran Associates Inc.},
-	address = {Red Hook, NY, USA},
-	booktitle = {Proceedings of the 32nd International Conference on Neural Information Processing Systems},
-	pages = {6572–6583},
-	numpages = {12},
-	location = {Montr\'{e}al, Canada},
-	series = {NIPS'18}
+
+% Data
+@inproceedings{Malekzadeh:2019:MSD:3302505.3310068,
+	author = {Malekzadeh, Mohammad and Clegg, Richard G. and Cavallaro, Andrea and Haddadi, Hamed},
+	title = {Mobile Sensor Data Anonymization},
+	booktitle = {Proceedings of the International Conference on Internet of Things Design and Implementation},
+	series = {IoTDI '19},
+	year = {2019},
+	isbn = {978-1-4503-6283-2},
+	location = {Montreal, Quebec, Canada},
+	pages = {49--58},
+	numpages = {10},
+	url = {http://doi.acm.org/10.1145/3302505.3310068},
+	doi = {10.1145/3302505.3310068},
+	acmid = {3310068},
+	publisher = {ACM},
+	address = {New York, NY, USA},
+	keywords = {adversarial training, deep learning, edge computing, sensor data privacy, time series analysis},
+}
+@book{winter2009biomechanics,
+	title={Biomechanics and Motor Control of Human Movement},
+	author={Winter, David A.},
+	edition={4th},
+	year={2009},
+	publisher={John Wiley \& Sons},
+	address={Hoboken, New Jersey},
+	isbn={978-0-470-39818-0}
+}
+@article{passive_dyn_walk,
+	author = {McGeer, Tad},
+	year = {1990},
+	month = {04},
+	pages = {62-82},
+	title = {Passive Dynamic Walking},
+	volume = {9},
+	journal = {I. J. Robotic Res.},
+	doi = {10.1177/027836499000900206}
+}
+@ARTICLE{10585302,
+	author={Saha, Utsab and Saha, Sawradip and Kabir, Md. Tahmid and Fattah, Shaikh Anowarul and Saquib, Mohammad},
+	journal={IEEE Sensors Letters}, 
+	title={Decoding Human Activities: Analyzing Wearable Accelerometer and Gyroscope Data for Activity Recognition}, 
+	year={2024},
+	volume={8},
+	number={8},
+	pages={1-4},
+	keywords={Legged locomotion;Training;Sensors;Accuracy;Predictive models;Gyroscopes;Signal processing;Deep learning;Human activity recognition;Inertial sensors;Sensor signal processing;activity grouping;deep learning;human activity recognition;inertial sensors},
+	doi={10.1109/LSENS.2024.3423340}
+}
+@article{10585303,
+	author = {Bodhe, Rushikesh and Sivakumar, Saaveethya and Sakarkar, Gopal and Juwono, Filbert and Apriono, Catur},
+	year = {2024},
+	month = {02},
+	pages = {1-27},
+	title = {Outdoor activity classification using smartphone based inertial sensor measurements},
+	volume = {83},
+	journal = {Multimedia Tools and Applications},
+	doi = {10.1007/s11042-024-18599-w}
 }

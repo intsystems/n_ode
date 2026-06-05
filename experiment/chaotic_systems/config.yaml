@@ -1,2 +1,9 @@
+dt: 5e-2
+noise_sigma: 2.
+x0_sigma: 2.
+traj_len: 100
+
 results_dir: results_chaotic
 tracking_uri: sqlite:///mlflow.db
+
+

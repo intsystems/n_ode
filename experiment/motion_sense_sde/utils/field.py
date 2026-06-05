@@ -30,7 +30,7 @@ class SDEField(nn.Module):
             nn.Linear(d, d)
         )
         self.brownian_sigma = nn.Parameter(
-            1e-1 * torch.randn((d, ))
+            1e-3 * torch.randn((d, ))
         )
     
     def f(self, t: torch.Tensor, x: torch.Tensor):
@@ -76,15 +76,15 @@ class FieldLitModule(LightningModule):
 
         batch = (batch - self.traj_mean) / self.traj_std
         pred, target = self._rollout(batch)
-        loss = nn.functional.smooth_l1_loss(pred, target, beta=1e-1)
+        loss = nn.functional.mse_loss(pred, target)
         self.log("Train/loss", loss, on_step=True, on_epoch=True)
 
         self.manual_backward(loss)
         for opt in self.optimizers():
             opt.step()
         
-        if self.trainer.is_last_batch:
-            self.lr_schedulers().step()
+        # if self.trainer.is_last_batch:
+        #     self.lr_schedulers().step()
 
     def validation_step(self, batch, batch_idx):
         batch = (batch - self.traj_mean) / self.traj_std
@@ -98,17 +98,18 @@ class FieldLitModule(LightningModule):
         optimizers = [
             optim.Adam(
                 chain(self.field.nonlinear_add.parameters()),
-                lr=1e-2, weight_decay=1e-8
+                lr=1e-3, weight_decay=1e-6
             ),
             optim.Adam(
                 self.field.A.parameters(),
                 lr=1e-3
             )
         ]
-        schedulers = [
-            optim.lr_scheduler.LinearLR(
-                optimizers[0],
-                start_factor=1., end_factor=1e-1, total_iters=10
-            )
-        ]
-        return optimizers, schedulers
+        # schedulers = [
+        #     optim.lr_scheduler.LinearLR(
+        #         optimizers[0],
+        #         start_factor=1., end_factor=1e-1, total_iters=10
+        #     )
+        # ]
+        
+        return optimizers#, schedulers

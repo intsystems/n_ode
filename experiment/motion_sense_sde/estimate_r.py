@@ -39,7 +39,7 @@ if __name__ == "__main__":
     )
     d = test_dataset.d
 
-    ckpt = os.path.join(config.results_dir, str(args.subj), args.act, "best.ckpt")
+    ckpt = os.path.join(config.results_dir, str(args.subj), args.act, "last.ckpt")
     field_mod = FieldLitModule.load_from_checkpoint(
         ckpt, weights_only=False,
         traj_mean=torch.zeros((d,), dtype=torch.float32),

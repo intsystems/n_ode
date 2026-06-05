@@ -1,23 +1,13 @@
 configfile: "experiment/motion_sense/config.yaml"
-SUBJS = [1]
-ACTS = ["jog", "wlk"] # config["activity_codes"]
+SUBJS = [2, 0, 3, 4, 5, 6]
+#w SUBJS = list(range(24))
+# ACTS = ["jog", "wlk"]
+ACTS = config["activity_codes"]
 
 for subj in SUBJS:
     for act in ACTS:
         rule:
-            name: f"estimate_noise_{act}_{subj}"
-            output:
-                os.path.join(config["results_dir"], str(subj), act, "traj_std.csv")
-            params:
-                act=act, subj=subj
-            shell: """
-                python experiment/motion_sense/estimate_noise.py {params.act} {params.subj}
-            """
-
-        rule:
             name: f"learn_field_{act}_{subj}"
-            input:
-                os.path.join(config["results_dir"], str(subj), act, "traj_std.csv")
             output:
                 os.path.join(config["results_dir"], str(subj), act, "best.ckpt")
             params:
@@ -27,7 +17,7 @@ for subj in SUBJS:
             """
     
     rule:
-        name: f"subj_{subj}_classify"
+        name: f"intra_subj_{subj}_classify"
         input:
             [
                 os.path.join(config["results_dir"], str(subj), act, "best.ckpt")
@@ -38,9 +28,26 @@ for subj in SUBJS:
         params:
             subj=subj
         shell: """
-            python experiment/motion_sense/subject_classify.py {params.subj}
+            python experiment/motion_sense/intra_subj_classify.py {params.subj}
+        """
+
+for act in ACTS:
+    rule:
+        name: f"inter_subj_{act}_classify"
+        input:
+            [
+                os.path.join(config["results_dir"], str(subj), act, "best.ckpt")
+                for subj in SUBJS
+            ]
+        output:
+            os.path.join(config["results_dir"], f"{act}_inter.csv")
+        params:
+            act=act
+        shell: """
+            python experiment/motion_sense/inter_subj_classify.py {params.act}
         """
 
 rule all:
     input:
-        [os.path.join(config["results_dir"], str(subj), "cls.csv") for subj in SUBJS]
+        [os.path.join(config["results_dir"], str(subj), "cls.csv") for subj in SUBJS],
+        [os.path.join(config["results_dir"], f"{act}_inter.csv") for act in ACTS]

@@ -19,9 +19,9 @@ from lightning.pytorch.loggers import MLFlowLogger
 from experiment.motion_sense_sde.utils.dataset import TrajectoryDataset
 from experiment.motion_sense_sde.utils.field import FieldLitModule
 
-BATCH_SIZE = 1024
+BATCH_SIZE = 2048
 NUM_WORKERS = 2
-WINDOW_SIZE = 100
+WINDOW_SIZE = 20
 
 
 if __name__ == "__main__":
@@ -69,17 +69,16 @@ if __name__ == "__main__":
     checkpointing = ModelCheckpoint(
         os.path.join(config.results_dir, str(args.subj), args.act),
         filename="best", monitor="Val/loss", mode="min",
-        enable_version_counter=False
+        enable_version_counter=False, save_last=True
     )
     trainer = Trainer(
         accelerator="auto",
         # devices=4,
         callbacks=[checkpointing],
         logger=logger,
-        max_epochs=50,
-        log_every_n_steps=2
+        max_epochs=80,
+        log_every_n_steps=1
     )
     trainer.fit(
         field_module, train_loader, test_loader
     )
-

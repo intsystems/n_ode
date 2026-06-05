@@ -21,9 +21,9 @@ from experiment.motion_sense.utils.field import FieldLitModule
 
 import mlflow
 
-BATCH_SIZE = 32
+BATCH_SIZE = 2048
 NUM_WORKERS = 2
-WINDOW_SIZE = 16
+WINDOW_SIZE = 20
 
 
 if __name__ == "__main__":
@@ -39,7 +39,7 @@ if __name__ == "__main__":
             args.act, train_act_code, args.subj,
             window_size=WINDOW_SIZE
         )
-        for train_act_code in config.activity_codes[args.act][:-1]
+        for train_act_code in config.activity_codes[args.act][0:1]
     ]
     test_dataset = TrajectoryDataset(
         config.data_dir, config.data_types, config.state_names,
@@ -56,35 +56,30 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
     test_loader = DataLoader(test_dataset, BATCH_SIZE, shuffle=False)
 
-    noise_sigma = pd.read_csv(
-        os.path.join(config.results_dir, str(args.subj), args.act, "traj_std.csv"),
-        index_col=0
-    ).to_numpy().flatten()
     state_dim = test_dataset.d
-    STATE_NOISE_SIGMA = np.full((state_dim, ), 1.)
     field_module = FieldLitModule(
-        state_dim, config.dt, STATE_NOISE_SIGMA, noise_sigma, config.state_names,
+        state_dim, config.dt, config.state_names,
         traj_mean=traj_mean, traj_std=traj_std
     )
 
     logger = MLFlowLogger(
         experiment_name="motion_sense", tracking_uri=config.tracking_uri,
         run_name="learn_field",
-        log_model=True,
+        log_model="all",
         tags={"act": args.act, "subj": str(args.subj)}
     )
     checkpointing = ModelCheckpoint(
         os.path.join(config.results_dir, str(args.subj), args.act),
         filename="best", monitor="Val/loss", mode="min",
-        enable_version_counter=False
+        enable_version_counter=False, save_last=True
     )
     trainer = Trainer(
-        accelerator="cpu",
+        accelerator="auto",
         # devices=4,
         callbacks=[checkpointing],
         logger=logger,
-        max_epochs=3,
-        log_every_n_steps=20
+        max_epochs=70,
+        log_every_n_steps=1
     )
     trainer.fit(
         field_module, train_loader, test_loader

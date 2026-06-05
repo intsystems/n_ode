@@ -366,7 +366,20 @@
 			\end{equation}
 			If individuality hypothesis does not hold, then the classifier must be random when we apply it to the test series $\bx(t_i)$ from all subjects. That makes our null hypothesis which we test with significance level $0.05$ using binomial test~\cite{hogg2005introduction}.
 			
-			Visualization of the time series and smoothed trajectories corresponding to different activities is on the Fig. \ref{label}. We can separate smoothed trajectories for the activities that means classes have different vector fields. Accuracy is reported in the Tab. \ref{tab:motion_results}. High values imply ODE model truly suits human motion data. The binomial test's p-values for the individuality hypothesis reported in the Tab. \ref{tab:ind_hyp_res}. We also included subject's classification accuracy here using (\ref{def:subj_classifier}). The test failed everywhere so we statistically prove that people perform activities not in the same and we can accurately differentiate them. 
+			Visualization of the time series and smoothed trajectories corresponding to different activities is on the Fig. \ref{fig:act_smooth_viz}. We can separate smoothed trajectories for the activities that means classes have different vector fields. Accuracy is reported in the Tab. \ref{tab:motion_results}. High values imply ODE model truly suits human motion data. The binomial test's p-values for the individuality hypothesis reported in the Tab. \ref{tab:ind_hyp_res}. We also included subject's classification accuracy here using (\ref{def:subj_classifier}). The test failed for jogging and walking and was successful for other activities. This seems reasonable because sitting and standing are static motions with no articulated movements in contrast to jogging and walking. Rejection of the individuality hypothesis for moving up/downstairs was not expected and suggests an interesting insight.
+
+		\begin{figure}[h!]
+			\centering
+			\includegraphics[width=0.49\columnwidth, keepaspectratio]{rotrate_jog_smooth}
+			\includegraphics[width=0.49\columnwidth, keepaspectratio]{accel_jog_smooth}
+			
+			\vspace{0.5cm}
+			
+			\includegraphics[width=0.49\columnwidth, keepaspectratio]{rotrate_ups_smooth}
+			\includegraphics[width=0.49\columnwidth, keepaspectratio]{accel_ups_smooth}
+			
+			\caption{The upper row shows rotation rate and acceleration time series for the jogging activity. Smoothed trajectories from $f_{\text{jog}}$ and $f_{\text{wlk}}$ are visualized for comparison. The lower row depicts time series for upstairs activity with $f_{\text{ups}}$ and $f_{\text{sit}}$ smoothed trajectories. All series and fields were taken from the subject 1.}
+		\end{figure}
 		
 		\begin{table}[h]
 			\centering
@@ -375,13 +388,13 @@
 				\toprule
 				Activity & Accuracy \\
 				\midrule
-				jog & \textit{TODO} \\
-				walk & \textit{TODO} \\
-				upstairs & \textit{TODO} \\
-				downstairs & \textit{TODO} \\
-				stand & \textit{TODO} \\
-				sit & \textit{TODO} \\
-				all & \textit{TODO} \\
+				jog & 0.84 \\
+				walk & 0.84 \\
+				upstairs & 0.72 \\
+				downstairs & 0.70 \\
+				stand & 0.75 \\
+				sit & 0.74 \\
+				all & 0.765 \\
 				\bottomrule
 			\end{tabular}
 		\end{table}
@@ -393,20 +406,20 @@
 				\toprule
 				Activity & p-value & Accuracy \\
 				\midrule
-				jog & \textit{TODO} & \textit{TODO} \\
-				walk & \textit{TODO} & \textit{TODO}\\
-				upstairs & \textit{TODO} & \textit{TODO} \\
-				downstairs & \textit{TODO} & \textit{TODO} \\
-				stand & \textit{TODO} & \textit{TODO} \\
-				sit & \textit{TODO} & \textit{TODO} \\
-				all & \textit{TODO} & \textit{TODO} \\
+				jog & 0.03 & 0.84 \\
+				walk & 0.01& 1.00\\
+				upstairs & 0.35 & 0.68 \\
+				downstairs & 0.34 & 0.71 \\
+				stand & 0.41 & 0.65 \\
+				sit & 0.89 & 0.34 \\
+				all & - & 0.7 \\
 				\bottomrule
 			\end{tabular}
 		\end{table}
 
 	\section{Conclusion}
 	
-		In the paper we have introduced distance-based time series classifier. It assumes particular time series model --- ODE or SDE dynamical systems. We proved it is asymptotically accurate with probability one in the idealized conditions and reasonably adapted it for the more general case. Our classifier is simple and powerful as it requires only the systems' vector fields $f_j$. Then it uses developed framework of ODE solvers and smoothing methods. Our classifier is also flexible. If we don't know vector fields we can learn them from data. If we don't observe the entire dynamics we can use Whitney/Takens theorem to restore it. Classifier's flexibility and applicability was demonstrated empirically on the human motion signals and ECG recordings.
+		In the paper we have introduced distance-based time series classifier. It assumes particular time series model --- ODE or SDE dynamical systems. We proved it is asymptotically accurate with probability one in the idealized conditions and reasonably adapted it for the more general case. Our classifier is simple and powerful as it requires only the systems' vector fields $f_j$. Then it uses developed framework of ODE solvers and smoothing methods. Our classifier is also flexible. If we don't know vector fields we can learn them from data. If we don't observe the entire dynamics we can use Whitney/Takens theorem to restore it. Classifier's flexibility and applicability was demonstrated empirically on the human motion signals.% and ECG recordings.
 		
 		Our classifier has certain limitations by its definition. Even though introduced dynamical systems are quite general they can not describe any time series. For example, we expect poor performance for non-continuous dynamics or general random processes. Next, learning vector fields may be cumbersome if we don't have some clue about their form or lack data. Finally, numerical methods the classifier uses have their own conditions and bounds that should be understood before application.
 		

@@ -476,15 +476,3 @@ TSWLatexianTemp*
 
 .snakemake
 .ansible
-
-.DS_Store
-
-.snakemake
-.ansible
-data/
-data_ecg5000
-lightning_logs
-mlruns
-mlflow.db
-results*
-ssh_utils.sh

@@ -1,0 +1,46 @@
+configfile: "experiment/basic_motions/config.yaml"
+CLASSES = config["classes"]
+
+for label in CLASSES:
+    rule:
+        name: f"learn_field_{label}"
+        output:
+            os.path.join(config["results_dir"], label, "best.ckpt")
+        params:
+            label=label
+        shell: """
+            python experiment/basic_motions/learn_field.py {params.label}
+        """
+
+    rule:
+        name: f"test_subj_{label}_classify"
+        input:
+            [
+                os.path.join(config["results_dir"], cand_label, "best.ckpt")
+                for cand_label in CLASSES
+            ]
+            + [os.path.join(config["results_dir"], "R_diag.csv")]
+        output:
+            os.path.join(config["results_dir"], f"{label}_test.csv")
+        params:
+            label=label
+        shell: """
+            python experiment/basic_motions/test_subj_classify.py {params.label}
+        """
+
+# single global R, pooled over every class' field on its own train split
+rule estimate_r:
+    input:
+        [
+            os.path.join(config["results_dir"], cand_label, "best.ckpt")
+            for cand_label in CLASSES
+        ]
+    output:
+        os.path.join(config["results_dir"], "R_diag.csv")
+    shell: """
+        python experiment/basic_motions/estimate_r.py
+    """
+
+rule all:
+    input:
+        [os.path.join(config["results_dir"], f"{label}_test.csv") for label in CLASSES]

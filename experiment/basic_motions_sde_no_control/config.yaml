@@ -1,0 +1,13 @@
+tracking_uri: sqlite:///mlflow.db
+train_path: BasicMotions/BasicMotions_TRAIN.ts
+test_path: BasicMotions/BasicMotions_TEST.ts
+results_dir: results_basic_motions_sde_no_control
+classes: ["Standing", "Running", "Walking", "Badminton"]
+dt: 0.1  # mu = 10 Hz (one sample every tenth of a second)
+# BasicMotions channels: 0-2 accelerometer, 3-5 gyroscope. This experiment uses
+# only the gyroscope (rotation rate) as an AUTONOMOUS SDE state -- no control.
+gyro_channels: [3, 4, 5]
+state_names:
+  - "gyro.x"
+  - "gyro.y"
+  - "gyro.z"

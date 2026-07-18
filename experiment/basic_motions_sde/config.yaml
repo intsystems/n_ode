@@ -1,0 +1,17 @@
+tracking_uri: sqlite:///mlflow.db
+train_path: BasicMotions/BasicMotions_TRAIN.ts
+test_path: BasicMotions/BasicMotions_TEST.ts
+results_dir: results_basic_motions_sde
+classes: ["Standing", "Running", "Walking", "Badminton"]
+dt: 0.1  # mu = 10 Hz (one sample every tenth of a second)
+# BasicMotions channels: 0-2 accelerometer (control), 3-5 gyroscope (SDE state)
+gyro_channels: [3, 4, 5]
+accel_channels: [0, 1, 2]
+state_names:
+  - "gyro.x"
+  - "gyro.y"
+  - "gyro.z"
+control_names:
+  - "accel.x"
+  - "accel.y"
+  - "accel.z"

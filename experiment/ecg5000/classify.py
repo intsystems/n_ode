@@ -21,9 +21,11 @@ global ukf
 
 def np_field_adapter(torch_field: nn.Module):
     def field(x: np.ndarray, dt: float):
-        x = torch.from_numpy(x).unsqueeze(0)
+        x = torch.from_numpy(x).unsqueeze(0).to(torch.float32)
         t_mesh = torch.tensor([0., dt])
-        return odeint(torch_field, x, t_mesh).squeeze(1)[-1].numpy()
+        return odeint(
+            torch_field, x, t_mesh, method="rk4"
+        ).squeeze(1)[-1].numpy()
     
     return field
 
@@ -38,18 +40,26 @@ def worker_init(field_adapter: FieldLitModule, noise_sigma: np.ndarray):
         d, d, dt,
         hx=identity, fx=np_field_adapter(field_adapter.field), points=points
     )
-    ukf.Q *= 1e-6
+    ukf.Q *= 1e-9
     ukf.R = np.diag(noise_sigma ** 2)
     ukf.P = np.diag(noise_sigma ** 2)
 
+    ukf.traj_mean = field_adapter.traj_mean.numpy()
+    ukf.traj_std = field_adapter.traj_std.numpy()
+
 def compute_distance(traj: np.ndarray):
     global ukf
-    ukf.x = traj[0]
-    traj = traj[1:]
+    traj_norm = (traj - ukf.traj_mean) / ukf.traj_std
+    ukf.x = traj_norm[0]
+    traj_norm = traj_norm[1:]
     
-    mu, cov = ukf.batch_filter(traj)
-    traj_smooth, _, _ = ukf.rts_smoother(mu, cov)
-    return np.linalg.norm(traj_smooth - traj, 2)
+    mu, cov = ukf.batch_filter(traj_norm)
+    traj_smooth, traj_covs, _ = ukf.rts_smoother(mu, cov)
+    traj_smooth_unnorm = traj_smooth * ukf.traj_std + ukf.traj_mean
+    traj_covs *= ukf.traj_std ** 2
+
+    return np.linalg.norm(traj_smooth_unnorm - traj[1:], 1)
+    # return loss
 
 
 if __name__ == "__main__":
@@ -72,23 +82,22 @@ if __name__ == "__main__":
     ).to("cpu").eval()
     for param in field_adapter.parameters():
         param.requires_grad = False
-    noise_sigma = np.load(
-        os.path.join(config.results_dir, str(args.pred_label), "noise_sigma.npy")
-    )
+    noise_sigma = np.ones((config.delay_dim,)).astype(np.float32) * 1e-3
 
     pool = ProcessPoolExecutor(
-        max_workers=2, initializer=worker_init, initargs=(field_adapter, noise_sigma)
+        max_workers=20, initializer=worker_init, initargs=(field_adapter, noise_sigma)
     )
 
+    num_traj = len(test_dataset)
     results_futures = [
         pool.submit(compute_distance, test_dataset[i].numpy())
-        for i in range(len(test_dataset))
+        for i in range(num_traj)
     ]
     results = []
     for f in track(results_futures, "Processing target trajectories"):
         results.append(f.result())
     results = pd.DataFrame(
-        {"distance": results, "traj_num": list(range(len(test_dataset)))}
+        {"distance": results, "traj_num": list(range(num_traj))}
     )
     results["target"] = args.target_label
     results["pred"] = args.pred_label

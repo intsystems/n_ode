@@ -1,0 +1,41 @@
+configfile: "experiment/linear_systems/config.yaml"
+
+SIGMAS = [1e-3, 1e-2, 1e-1, 1e0, 1., 2., 3.]
+# formatted-name -> numeric sigma (dedupes 1e0 / 1.)
+SIGMA_BY_NAME = {f"{s:.5f}": s for s in SIGMAS}
+
+rule all:
+    input:
+        expand(
+            os.path.join(config["results_dir"], "{method}", "sigma_{sigma}.csv"),
+            method=["kalman"],
+            #method=["kalman", "lstm", "knn_dtw"],
+            sigma=list(SIGMA_BY_NAME.keys()),
+        )
+
+rule kalman_classification:
+    output:
+        os.path.join(config["results_dir"], "kalman", "sigma_{sigma}.csv")
+    params:
+        sigma=lambda wildcards: SIGMA_BY_NAME[wildcards.sigma]
+    shell: """
+        python experiment/linear_systems/kalman_classification.py {params.sigma}
+    """
+
+rule lstm_classification:
+    output:
+        os.path.join(config["results_dir"], "lstm", "sigma_{sigma}.csv")
+    params:
+        sigma=lambda wildcards: SIGMA_BY_NAME[wildcards.sigma]
+    shell: """
+        python experiment/linear_systems/lstm_classify.py {params.sigma}
+    """
+
+rule knn_dtw_classification:
+    output:
+        os.path.join(config["results_dir"], "knn_dtw", "sigma_{sigma}.csv")
+    params:
+        sigma=lambda wildcards: SIGMA_BY_NAME[wildcards.sigma]
+    shell: """
+        python experiment/linear_systems/knn_dtw_classification.py {params.sigma}
+    """

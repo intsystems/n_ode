@@ -1,22 +1,15 @@
 import argparse
 import os
-from pathlib import Path
 from omegaconf import OmegaConf
-from itertools import chain
-from toolz import pipe
-from toolz.curried import map as map_c
 
-import numpy as np
-import pandas as pd
 
 import torch
-from torch.utils.data import DataLoader, ConcatDataset
-from lightning import LightningModule, Trainer
+from torch.utils.data import DataLoader
+from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import MLFlowLogger
-# from torchmetrics.regression import ...
 
-from experiment.ecg5000.utils.dataset import TakensSlicedTrajectoryDataset, TakensTrajectoryDataset
+from experiment.ecg5000.utils.dataset import TakensSlicedTrajectoryDataset
 from experiment.ecg5000.utils.field import FieldLitModule
 
 BATCH_SIZE = 256
@@ -35,23 +28,10 @@ if __name__ == "__main__":
     )
     test_dataset = TakensSlicedTrajectoryDataset(
         os.path.join(config.data_dir, "ECG5000_TEST.txt"),
-        config.delay_dim, args.label, config.window_size, max_series=500
+        config.delay_dim, args.label, config.window_size, max_series=100
     )
-    # normalization
-    unslided_train_dataset = TakensTrajectoryDataset(
-        os.path.join(config.data_dir, "ECG5000_TRAIN.txt"),
-        config.delay_dim, args.label
-    )
-    all_train_traj = torch.concat(
-        [
-            unslided_train_dataset[i]
-            for i in range(len(unslided_train_dataset))
-        ]
-    )
-    traj_mean = all_train_traj.mean(dim=0)
-    traj_std = all_train_traj.std(dim=0)
-    del unslided_train_dataset
-    del all_train_traj
+    traj_mean = torch.zeros((config.delay_dim,), dtype=torch.float32)
+    traj_std = torch.ones((config.delay_dim,), dtype=torch.float32)
 
     train_loader = DataLoader(train_dataset, BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
     test_loader = DataLoader(test_dataset, BATCH_SIZE, shuffle=False)
@@ -73,12 +53,15 @@ if __name__ == "__main__":
         filename="best", monitor="Val/loss", mode="min",
         enable_version_counter=False
     )
+    early_stop = EarlyStopping(
+        monitor="Val/loss",
+        patience=7
+    )
     trainer = Trainer(
         accelerator="gpu",
-        # devices=4,
-        callbacks=[checkpointing],
+        callbacks=[checkpointing, early_stop],
         logger=logger,
-        max_epochs=5,
+        max_epochs=100,
         log_every_n_steps=10
     )
     trainer.fit(

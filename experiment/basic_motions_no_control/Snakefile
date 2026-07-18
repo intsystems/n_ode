@@ -1,0 +1,32 @@
+configfile: "experiment/basic_motions_no_control/config.yaml"
+CLASSES = config["classes"]
+
+for label in CLASSES:
+    rule:
+        name: f"learn_field_{label}"
+        output:
+            os.path.join(config["results_dir"], label, "best.ckpt")
+        params:
+            label=label
+        shell: """
+            python experiment/basic_motions_no_control/learn_field.py {params.label}
+        """
+
+    rule:
+        name: f"test_subj_{label}_classify"
+        input:
+            [
+                os.path.join(config["results_dir"], cand_label, "best.ckpt")
+                for cand_label in CLASSES
+            ]
+        output:
+            os.path.join(config["results_dir"], f"{label}_test.csv")
+        params:
+            label=label
+        shell: """
+            python experiment/basic_motions_no_control/test_subj_classify.py {params.label}
+        """
+
+rule all:
+    input:
+        [os.path.join(config["results_dir"], f"{label}_test.csv") for label in CLASSES]

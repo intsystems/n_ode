@@ -1,0 +1,7 @@
+dt: 5e-2
+traj_len: 100
+
+results_dir: results_chaotic
+tracking_uri: sqlite:///mlflow.db
+
+

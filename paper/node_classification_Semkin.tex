@@ -166,7 +166,7 @@
 	\begin{equation}\label{eq:converg_order}
 		\underset{t \in [0, T]}{\sup} \lVert \text{ODESolve}(t | \bbx_0, f) - \bbx(t | \bbx_0, f) \rVert = \mathcal{O}(e^{LT} \tau^l),
 	\end{equation}
-	where $L$ is a Lipschitz constant of $f$. The higher the convergence order and the smaller $\tau$, the higher the computational complexity of the ODESolve procedure. Besides this tradeoff, some vector fields imply additional constraints on the smallness of $\tau$. If these are not satisfied, the solver solution diverges from the true one. This effect is called \emph{stiffness} and is usually addressed by choosing an appropriate solver~\cite{ode_solvers_stiff}. The illustration of this effect is in Fig.~\ref{fig:stiffness}.
+	where $L$ is a Lipschitz constant of $f$~\cite{ode_solvers}. The higher the convergence order and the smaller $\tau$, the higher the computational complexity of the ODESolve procedure. Besides this tradeoff, some vector fields imply additional constraints on the smallness of $\tau$. If these are not satisfied, the solver solution diverges from the true one. This effect is called \emph{stiffness} and is usually addressed by choosing an appropriate solver~\cite{ode_solvers_stiff}. The illustration of this effect is in Fig.~\ref{fig:stiffness}.
 	
 	\begin{figure}[h!]
 		\centering
